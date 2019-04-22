@@ -122,8 +122,6 @@ class Translator:
         # Get a list of strings from dataframe not in the dictionary
         # Avoiding translating as we go through the dataframe, it's very slow
         need_transl = self.get_all_ru_uk(table)
-        print("Not found in the dictionary: ")
-        print(need_transl)
 
         # translate them in bulk
         self.google_translate_bulk(need_transl['ru'], 'RU')

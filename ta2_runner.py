@@ -7,16 +7,19 @@ from gen_event_clusters import gen_event_clusters
 kg_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'gaia-knowledge-graph/update_kg')
 sys.path.append(kg_path)
 from Updater import Updater
-import datetime
+from datetime import datetime
 
 if __name__ == '__main__':
     endpoint = sys.argv[1]  # without repo
     repo = sys.argv[2]
-    # graph = sys.argv[3]
-    graph = None
+    graph = sys.argv[3]
 
     endpoint_url = endpoint + '/' + repo
     outdir = 'store_data/' + repo
+
+    print("Endpoint: ", endpoint)
+    print("Repository: ", repo)
+    print("Graph: ", graph)
 
     if not os.path.isdir(outdir):
         os.makedirs(outdir)

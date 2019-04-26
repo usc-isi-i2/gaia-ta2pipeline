@@ -156,16 +156,7 @@ def add_trasl_cols(original_h5, outdir):
     df_trans = translator.add_translation_cols(df_entity)
 
     # write out dataframe
-    for c in ('name', 'wiki_label_en', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_en',
-              'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'label',
-              'transl_name', 'transl_label_ru', 'transl_label_uk', 'transl_alias_ru',
-              'transl_alias_uk'):
-        df_trans[c] = df_trans[c].apply(lambda s: eval(s) if s and isinstance(s, str) else None)
     df_trans.to_hdf(outdir + '/entity_trans_all.h5', 'entity', mode='w', format='fixed')
     _ = pd.read_hdf(outdir + '/entity_trans_all.h5')
-
-
-
-
 
 

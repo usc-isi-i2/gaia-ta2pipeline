@@ -12,7 +12,10 @@ from datetime import datetime
 if __name__ == '__main__':
     endpoint = sys.argv[1]  # without repo
     repo = sys.argv[2]
-    graph = sys.argv[3]
+    if len(sys.argv) > 3:
+        graph = sys.argv[3]
+    else:
+        graph = None
 
     endpoint_url = endpoint + '/' + repo
     outdir = 'store_data/' + repo

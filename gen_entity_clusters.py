@@ -151,8 +151,8 @@ def gen_entity_clusters_baseline(entity_h5, outdir):
             break
 
     df_entity[df_entity['target'] == 'LDC2015E42:m.0372_h'][['e', 'type', 'name', 'source', 'target']].groupby('e').head(1)
-    df_entity_xi = pd.read_hdf(outdir + '/entity_all.h5')
-    df_entity_xi[df_entity_xi['e'] == 'http://www.isi.edu/gaia/entities/434638b2-8700-4f18-923d-d056815a5fb6']
+    # df_entity_xi = pd.read_hdf(outdir + '/entity_all.h5')
+    # df_entity_xi[df_entity_xi['e'] == 'http://www.isi.edu/gaia/entities/434638b2-8700-4f18-923d-d056815a5fb6']
 
     def debug_output(c, type_):
         j = {'attractive_records': list(c.attractive_records), 'all_records': {}, 'type': type_}

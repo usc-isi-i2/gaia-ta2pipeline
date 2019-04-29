@@ -245,6 +245,9 @@ def generate_dataframe(endpoint_url, outdir):
     # df = df[(df['justificationType']!='nominal_mention') & (df['justificationType']!='pronominal_mention')]
     df['debug'] = df['justificationType'].apply(
         lambda s: False if s != 'nominal_mention' and s != 'pronominal_mention' else True)
+    df = df.astype({
+        'debug': bool
+    })
     rpi_entity_with_justification_filtered = df
     df_origin = df[['e', 'origin']].groupby('e')['origin'].apply(tuple).to_frame()
     df_origin['origin'] = df_origin['origin'].apply(lambda s: s if s[0] else None)
@@ -262,7 +265,7 @@ def generate_dataframe(endpoint_url, outdir):
     df_target['wiki_alias_uk'] = df_target['wikidata'].apply(get_labels('skos:altLabel', 'uk'))
     df_target['target_type'] = df_target.target.apply(lambda t: 'm' if ':m' in t else 'NIL')
 
-    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source']].drop_duplicates().join(df_origin, on='e')
+    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source', 'debug']].drop_duplicates().join(df_origin, on='e')
     df = df.join(rpi_external.set_index('e'), on='e')
     df = df.join(df_target.set_index('target'), on='target')
     df = df.join(document_types.set_index('source'), on='source')

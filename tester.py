@@ -28,11 +28,11 @@ if __name__ == '__main__':
     generate_dataframe(endpoint_url, outdir)
 
     print('Augmenting dataframe with translation columns... ', datetime.now().isoformat())
-    # add_trasl_cols(outdir + '/entity_all.h5', outdir)
+    add_trasl_cols(outdir + '/entity_all.h5', outdir)
 
-    # print('Generating entity clusters... ', datetime.now().isoformat())
-    # gen_entity_clusters_baseline(outdir + '/entity_trans_all.h5', outdir)
-    #
+    print('Generating entity clusters... ', datetime.now().isoformat())
+    gen_entity_clusters_baseline(outdir + '/entity_trans_all_filtered.h5', outdir)
+
     # print('Generating event clusters... ', datetime.now().isoformat())
     # gen_event_clusters(endpoint_url, outdir)
     #

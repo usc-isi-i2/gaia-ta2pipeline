@@ -158,5 +158,11 @@ def add_trasl_cols(original_h5, outdir):
     # write out dataframe
     df_trans.to_hdf(outdir + '/entity_trans_all.h5', 'entity', mode='w', format='fixed')
     _ = pd.read_hdf(outdir + '/entity_trans_all.h5')
+    df_trans.to_csv(outdir + '/entity_transl_all.csv')
+
+    # write out dataframe filtered
+    df_trans = df_trans[df_trans.debug is True]
+    df_trans.to_hdf(outdir + '/entity_trans_all_filtered.h5', 'entity', mode='w', format='fixed')
+    df_trans.to_csv(outdir + '/entity_transl_all_filtered.csv')
 
 

@@ -10,7 +10,8 @@ from rdflib.namespace import Namespace, RDFS, SKOS
 from rdflib import URIRef, Literal
 
 
-wikidata_sparql = SPARQLStore("http://sitaware.isi.edu:8080/bigdata/namespace/wdq/sparql")
+# wikidata_sparql = SPARQLStore("http://sitaware.isi.edu:8080/bigdata/namespace/wdq/sparql")
+wikidata_sparql = SPARQLStore("https://query.wikidata.org/sparql")
 WDT = Namespace('http://www.wikidata.org/prop/direct/')
 namespaces = {'wdt': WDT, 'skos': SKOS}
 
@@ -239,7 +240,11 @@ def generate_dataframe(endpoint_url, outdir):
     rpi_entity_with_justification.head()
 
     df = rpi_entity_with_justification
-    df = df[(df['justificationType']!='nominal_mention') & (df['justificationType']!='pronominal_mention')]
+    # drop entities with nominal mention and pronominal mention
+    # comment out line below to generate for all entities
+    # df = df[(df['justificationType']!='nominal_mention') & (df['justificationType']!='pronominal_mention')]
+    df['debug'] = df['justificationType'].apply(
+        lambda s: False if s != 'nominal_mention' and s != 'pronominal_mention' else True)
     rpi_entity_with_justification_filtered = df
     df_origin = df[['e', 'origin']].groupby('e')['origin'].apply(tuple).to_frame()
     df_origin['origin'] = df_origin['origin'].apply(lambda s: s if s[0] else None)
@@ -264,12 +269,12 @@ def generate_dataframe(endpoint_url, outdir):
     df = df.join(df_names[['e', 'name']].set_index('e'), on='e')
     df = df[['e', 'type', 'name', 'source', 'target', 'target_type', 'wikidata',
            'wiki_label_en', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_en',
-           'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'lang', 'label']]
+           'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'lang', 'label', 'debug']]
     df_all = df
 
     df_all.to_hdf(outdir + '/entity_all.h5', 'entity', mode='w', format='fixed')
     _ = pd.read_hdf(outdir + '/entity_all.h5')
 
-
+    df_all.to_csv(outdir + '/entity_all.csv')
 
 

@@ -38,10 +38,10 @@ def query_context(source, start, end):
         return context_extractor.query_context(start, end)
 
 
-def link_wikidata(target):
-    if not target or target.startswith('LDC2015E42:NIL'):
+def link_wikidata(fbid):
+    if not fbid or fbid.startswith('LDC2015E42:NIL'):
         return None
-    fbid = '/' + target[11:].replace('.', '/')
+    fbid = '/' + fbid[11:].replace('.', '/')
     query = "SELECT ?qid WHERE { ?qid wdt:P646 ?freebase } LIMIT 1"
     for qid, in wikidata_sparql.query(query, namespaces, {'freebase': Literal(fbid)}):
         return str(qid)
@@ -88,18 +88,18 @@ def generate_dataframe(endpoint_url, outdir):
     RemoteEndpoint._describe = _describe
 
     df = endpoint.select("""
-    SELECT DISTINCT ?e ?target {
+    SELECT DISTINCT ?e ?fbid {
         ?e a aida:Entity ;
            aida:system <http://www.rpi.edu> ;
            ^rdf:subject/aida:justifiedBy/aida:privateData [
-                aida:jsonContent ?target ;
+                aida:jsonContent ?fbid ;
                 aida:system <http://www.rpi.edu/EDL_Freebase>
             ]
     }
     """)
-    df.target = df.target.apply(lambda s: json.loads(s).get('freebase_link') if s else None)
+    df.fbid = df.fbid.apply(lambda s: json.loads(s).get('freebase_link') if s else None)
     df = df.astype({
-        'e': str, 'target': str
+        'e': str, 'fbid': str
     })
     rpi_external = df
 
@@ -245,9 +245,7 @@ def generate_dataframe(endpoint_url, outdir):
     # df = df[(df['justificationType']!='nominal_mention') & (df['justificationType']!='pronominal_mention')]
     df['debug'] = df['justificationType'].apply(
         lambda s: False if s != 'nominal_mention' and s != 'pronominal_mention' else True)
-    df = df.astype({
-        'debug': bool
-    })
+
     rpi_entity_with_justification_filtered = df
     df_origin = df[['e', 'origin']].groupby('e')['origin'].apply(tuple).to_frame()
     df_origin['origin'] = df_origin['origin'].apply(lambda s: s if s[0] else None)
@@ -255,22 +253,22 @@ def generate_dataframe(endpoint_url, outdir):
 
     # 3. wikidata and wikidata labels, alias
 
-    df_target = rpi_external[['target']].drop_duplicates()
-    df_target['wikidata'] = df_target.target.apply(link_wikidata)
+    df_target = rpi_external[['fbid']].drop_duplicates()
+    df_target['wikidata'] = df_target.fbid.apply(link_wikidata)
     df_target['wiki_label_en'] = df_target['wikidata'].apply(get_labels('rdfs:label', 'en'))
     df_target['wiki_label_ru'] = df_target['wikidata'].apply(get_labels('rdfs:label', 'ru'))
     df_target['wiki_label_uk'] = df_target['wikidata'].apply(get_labels('rdfs:label', 'uk'))
     df_target['wiki_alias_en'] = df_target['wikidata'].apply(get_labels('skos:altLabel', 'en'))
     df_target['wiki_alias_ru'] = df_target['wikidata'].apply(get_labels('skos:altLabel', 'ru'))
     df_target['wiki_alias_uk'] = df_target['wikidata'].apply(get_labels('skos:altLabel', 'uk'))
-    df_target['target_type'] = df_target.target.apply(lambda t: 'm' if ':m' in t else 'NIL')
+    df_target['fbid_type'] = df_target.fbid.apply(lambda t: 'm' if ':m' in t else 'NIL')
 
-    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source', 'debug']].drop_duplicates().join(df_origin, on='e')
+    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source', 'target', 'debug']].drop_duplicates().join(df_origin, on='e')
     df = df.join(rpi_external.set_index('e'), on='e')
-    df = df.join(df_target.set_index('target'), on='target')
+    df = df.join(df_target.set_index('fbid'), on='fbid')
     df = df.join(document_types.set_index('source'), on='source')
     df = df.join(df_names[['e', 'name']].set_index('e'), on='e')
-    df = df[['e', 'type', 'name', 'source', 'target', 'target_type', 'wikidata',
+    df = df[['e', 'type', 'name', 'source', 'target', 'fbid', 'fbid_type', 'wikidata',
            'wiki_label_en', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_en',
            'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'lang', 'label', 'debug']]
     df_all = df

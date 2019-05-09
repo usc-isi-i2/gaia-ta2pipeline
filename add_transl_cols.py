@@ -26,6 +26,9 @@ class Translator:
     def __init__(self):
         from google.cloud import translate
         self.google_translate_client = translate.Client()
+        # free google translator
+        from googletrans import Translator
+        self.free_translator = Translator()
         self.dict_ru = self.get_dictionary(self.dict_ru_path)
         self.dict_uk = self.get_dictionary(self.dict_uk_path)
 
@@ -49,10 +52,21 @@ class Translator:
                 translations.append(dict_a[word.lower()])
             else:  # else use google translate and add to dictionary
                 print(word)
-                translated = self.google_translate(word, source_lang)
+                translated = self.free_google_translate(word, source_lang)
                 translations.append(translated)
                 dict_a[word.lower()] = translated
         return translations
+
+    def free_google_translate(self, text, source_lang):
+        translation = self.free_translator.translate(text, src=source_lang, dest='en')
+        return translation.text
+
+    def free_google_translate_bulk(self, words, source_lang):
+        res = {}
+        translations = self.free_translator.translate(words, src=source_lang, dest='en')
+        for translation in translations:
+            res[translation.origin] = translation.text
+        return res
 
     def google_translate(self, text, source_lang):
         translation = self.google_translate_client.translate(text, source_language=source_lang, target_language='EN')
@@ -122,10 +136,10 @@ class Translator:
         # Get a list of strings from dataframe not in the dictionary
         # Avoiding translating as we go through the dataframe, it's very slow
         need_transl = self.get_all_ru_uk(table)
-
+    
         # translate them in bulk
-        self.google_translate_bulk(need_transl['ru'], 'RU')
-        self.google_translate_bulk(need_transl['uk'], 'UK')
+        self.free_google_translate_bulk(need_transl['ru'], 'RU')
+        self.free_google_translate_bulk(need_transl['uk'], 'UK')
 
         # add translation columns
         table[['transl_name', 'transl_label_ru', 'transl_label_uk', 'transl_alias_ru', 'transl_alias_uk']] = table[

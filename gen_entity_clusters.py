@@ -176,8 +176,8 @@ def gen_entity_clusters_baseline(entity_h5, outdir):
                     if bool(c1.fbids & c2.fbids):  # has overlap
                         # merge and add, delete cluster, cluster, break
                         print('merge ', cid2, ' -->', cid1)
-                        new_cluster = merge_clusters(c1, c2)
-                        clusters[cid] = new_cluster
+                        new_cluster = merge_clusters(c1, c2, ds)
+                        clusters[cid1] = new_cluster
                         del clusters[cid2]
                         raise Exception("break")
             res = 0

@@ -52,7 +52,7 @@ class Translator:
                 translations.append(dict_a[word.lower()])
             else:  # else use google translate and add to dictionary
                 print(word)
-                translated = self.free_google_translate(word, source_lang)
+                translated = self.google_translate(word, source_lang)
                 translations.append(translated)
                 dict_a[word.lower()] = translated
         return translations
@@ -122,6 +122,11 @@ class Translator:
                 ru = ru + list(row.wiki_alias_ru)
             if row.wiki_alias_uk:
                 uk = uk + list(row.wiki_alias_uk)
+            if row.originLabel and row.lang:
+                if row.lang.lower()[:2] == 'ru':
+                    ru = ru + list(row.originLabel)
+                elif row.lang.lower()[:2] == 'uk':
+                    uk = uk + list(row.originLabel)
         ru = list(set(ru))  # remove duplicates
         uk = list(set(uk))
         ru = list(w for w in ru if not is_en(w) and w.lower() not in (word.lower() for word in self.dict_ru))
@@ -135,15 +140,20 @@ class Translator:
     def add_translation_cols(self, table):
         # Get a list of strings from dataframe not in the dictionary
         # Avoiding translating as we go through the dataframe, it's very slow
+        print('Get a list of words needing translation...')
         need_transl = self.get_all_ru_uk(table)
     
         # translate them in bulk
-        self.free_google_translate_bulk(need_transl['ru'], 'RU')
-        self.free_google_translate_bulk(need_transl['uk'], 'UK')
+        print('Translating RU in bulk... (', len(need_transl['ru']), ')')
+        self.google_translate_bulk(need_transl['ru'], 'RU')
+        print('Translating UK in bulk... (', len(need_transl['uk']), ')')
+        self.google_translate_bulk(need_transl['uk'], 'UK')
 
         # add translation columns
-        table[['transl_name', 'transl_label_ru', 'transl_label_uk', 'transl_alias_ru', 'transl_alias_uk']] = table[
-            ['name', 'lang', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_ru', 'wiki_alias_uk']].apply(
+        print('Adding translation columns...')
+        table[['transl_name', 'transl_label_ru', 'transl_label_uk', 'transl_alias_ru', 'transl_alias_uk',
+               'transl_origin_label']] = table[
+            ['name', 'lang', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_ru', 'wiki_alias_uk', 'originLabel']].apply(
             self.get_translation_cols, axis='columns')
         return table
 
@@ -154,9 +164,12 @@ class Translator:
         transl_label_uk = self.translate_words(list(row.wiki_label_uk), 'UK') if row.wiki_label_uk else None
         transl_alias_ru = self.translate_words(list(row.wiki_alias_ru), 'RU') if row.wiki_alias_ru else None
         transl_alias_uk = self.translate_words(list(row.wiki_alias_uk), 'UK') if row.wiki_alias_uk else None
+        transl_origin_label = None if not row.originLabel or not row.lang or row.lang.lower().startswith(
+            'en') else self.translate_words(list(row.originLabel), row.lang[:2])
         return pd.Series(
             {'transl_name': transl_label, 'transl_label_ru': transl_label_ru, 'transl_label_uk': transl_label_uk,
-             'transl_alias_ru': transl_alias_ru, 'transl_alias_uk': transl_alias_uk})
+             'transl_alias_ru': transl_alias_ru, 'transl_alias_uk': transl_alias_uk,
+             'transl_origin_label': transl_origin_label})
 
 
 def add_trasl_cols(original_h5, outdir):

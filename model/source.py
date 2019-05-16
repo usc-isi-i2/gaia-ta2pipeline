@@ -45,6 +45,25 @@ class LTFSourceContext(SourceContext):
             texts.append(text)
         return ' '.join(texts)
 
+    def query(self, start, end):
+        tree = ET.parse(self.filepath)
+        root = tree.getroot()
+        for child in root.findall('./DOC/TEXT/SEG'):
+            seg_start, seg_end = int(child.get('start_char')), int(child.get('end_char'))
+            if seg_end < start:
+                continue
+            if seg_start > end:
+                break
+            for c in child.findall('TOKEN'):
+                s = int(c.get('start_char'))
+                e = int(c.get('end_char'))
+                if s == start and e == end:
+                    text = c.text
+                    break
+            if text:
+                break
+        return text
+
 
 class TextSourceContext(SourceContext):
     source_path = Path('rsd')

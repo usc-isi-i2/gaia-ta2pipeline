@@ -38,6 +38,15 @@ def query_context(source, start, end):
         return context_extractor.query_context(start, end)
 
 
+def query_label(source, start, end):
+    if start == -1 or end == -1:
+        return None
+    context_extractor = LTFSourceContext(source)
+    if context_extractor.doc_exists():
+        text = context_extractor.query(start, end)
+        return text
+
+
 def link_wikidata(fbid):
     if not fbid or fbid.startswith('LDC2015E42:NIL'):
         return None
@@ -237,6 +246,9 @@ def generate_dataframe(endpoint_url, outdir):
     # 2. origin
 
     rpi_entity_with_justification['origin'] = rpi_entity_with_justification.apply(lambda r: query_context(r.source, r.start, r.end), axis=1)
+    rpi_entity_with_justification['originLabel'] = rpi_entity_with_justification.apply(
+        lambda r: query_label(r.source, r.start, r.end), axis=1)
+
     rpi_entity_with_justification.head()
 
     df = rpi_entity_with_justification
@@ -249,7 +261,9 @@ def generate_dataframe(endpoint_url, outdir):
     rpi_entity_with_justification_filtered = df
     df_origin = df[['e', 'origin']].groupby('e')['origin'].apply(tuple).to_frame()
     df_origin['origin'] = df_origin['origin'].apply(lambda s: s if s[0] else None)
-    df_origin.head()
+
+    df_origin_label = df[['e', 'originLabel']].groupby('e')['originLabel'].apply(tuple).to_frame()
+    df_origin_label = df_origin_label['originLabel'].apply(lambda s: s if s[0] else None)
 
     # 3. wikidata and wikidata labels, alias
 
@@ -263,14 +277,14 @@ def generate_dataframe(endpoint_url, outdir):
     df_target['wiki_alias_uk'] = df_target['wikidata'].apply(get_labels('skos:altLabel', 'uk'))
     df_target['fbid_type'] = df_target.fbid.apply(lambda t: 'm' if ':m' in t else 'NIL')
 
-    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source', 'target', 'debug']].drop_duplicates().join(df_origin, on='e')
+    df = rpi_entity_with_justification_filtered[['e', 'type', 'label', 'source', 'target', 'debug']].drop_duplicates().join(df_origin, on='e').join(df_origin_label, on='e')
     df = df.join(rpi_external.set_index('e'), on='e')
     df = df.join(df_target.set_index('fbid'), on='fbid')
     df = df.join(document_types.set_index('source'), on='source')
     df = df.join(df_names[['e', 'name']].set_index('e'), on='e')
     df = df[['e', 'type', 'name', 'source', 'target', 'fbid', 'fbid_type', 'wikidata',
            'wiki_label_en', 'wiki_label_ru', 'wiki_label_uk', 'wiki_alias_en',
-           'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'lang', 'label', 'debug']]
+           'wiki_alias_ru', 'wiki_alias_uk', 'origin', 'originLabel', 'lang', 'label', 'debug']]
     df_all = df
 
     df_all.to_hdf(outdir + '/entity_all.h5', 'entity', mode='w', format='fixed')

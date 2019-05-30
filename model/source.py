@@ -48,6 +48,7 @@ class LTFSourceContext(SourceContext):
     def query(self, start, end):
         tree = ET.parse(self.filepath)
         root = tree.getroot()
+        text = None
         for child in root.findall('./DOC/TEXT/SEG'):
             seg_start, seg_end = int(child.get('start_char')), int(child.get('end_char'))
             if seg_end < start:

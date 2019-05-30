@@ -91,39 +91,48 @@ def merge_clusters(c1, c2, ds):
     return c
 
 
+def has_freebase(s):
+    if s is not None and len(s) > 0:
+        for fbid in s:
+            if 'NIL' not in fbid:
+                return True
+    return False
+
+
 def gen_entity_clusters_baseline(entity_h5, outdir):
     df_entity = pd.read_hdf(entity_h5)
-    df_entity['has_freebase'] = df_entity['fbid_type'].apply(lambda x: x == 'm')
+    # df_entity['has_freebase'] = df_entity['fbid_type'].apply(lambda x: x == 'm')
+    df_entity['has_freebase'] = df_entity['fbid'].apply(has_freebase)
     df_entity['has_target'] = df_entity['target'].apply(lambda x: x is not None and 'NIL' not in x)
     df_entity.head()
 
     set(df_entity['type'])
 
-    df_entity = df_entity.loc[df_entity['type'].isin([
-        'ldcOnt:Person',
-        'ldcOnt:Person.MilitaryPersonnel',
-        'ldcOnt:Person.MilitaryPersonnel.MilitaryOfficer',
-        'ldcOnt:Organization',
-        'ldcOnt:Organization.Association',
-        'ldcOnt:Organization.Association.Club',
-        'ldcOnt:Organization.CommercialOrganization.BroadcastingCompany',
-        'ldcOnt:Organization.CommercialOrganization.Manufacturer',
-        'ldcOnt:Organization.Government',
-        'ldcOnt:Organization.Government.Agency',
-        'ldcOnt:Organization.Government.LegislativeBody',
-        'ldcOnt:Organization.International',
-        'ldcOnt:Organization.MilitaryOrganization.GovernmentArmedForces',
-        'ldcOnt:Organization.PoliticalOrganization.Party',
-        'ldcOnt:GeopoliticalEntity',
-        'ldcOnt:GeopoliticalEntity.Country.Country',
-        'ldcOnt:GeopoliticalEntity.OrganizationOfCountries.OrganizationOfCountries',
-        'ldcOnt:GeopoliticalEntity.UrbanArea.City',
-        'ldcOnt:Location',
-        'ldcOnt:Location.Land',
-        'ldcOnt:Location.Land.Continent',
-        'ldcOnt:Location.Position.Region',
-        'ldcOnt:Commodity.Document'
-    ])]
+    # df_entity = df_entity.loc[df_entity['type'].isin([
+    #     'ldcOnt:Person',
+    #     'ldcOnt:Person.MilitaryPersonnel',
+    #     'ldcOnt:Person.MilitaryPersonnel.MilitaryOfficer',
+    #     'ldcOnt:Organization',
+    #     'ldcOnt:Organization.Association',
+    #     'ldcOnt:Organization.Association.Club',
+    #     'ldcOnt:Organization.CommercialOrganization.BroadcastingCompany',
+    #     'ldcOnt:Organization.CommercialOrganization.Manufacturer',
+    #     'ldcOnt:Organization.Government',
+    #     'ldcOnt:Organization.Government.Agency',
+    #     'ldcOnt:Organization.Government.LegislativeBody',
+    #     'ldcOnt:Organization.International',
+    #     'ldcOnt:Organization.MilitaryOrganization.GovernmentArmedForces',
+    #     'ldcOnt:Organization.PoliticalOrganization.Party',
+    #     'ldcOnt:GeopoliticalEntity',
+    #     'ldcOnt:GeopoliticalEntity.Country.Country',
+    #     'ldcOnt:GeopoliticalEntity.OrganizationOfCountries.OrganizationOfCountries',
+    #     'ldcOnt:GeopoliticalEntity.UrbanArea.City',
+    #     'ldcOnt:Location',
+    #     'ldcOnt:Location.Land',
+    #     'ldcOnt:Location.Land.Continent',
+    #     'ldcOnt:Location.Position.Region',
+    #     'ldcOnt:Commodity.Document'
+    # ])]
     df_entity[df_entity['wikidata'].notnull()].head()
 
     df_entity_filtered = df_entity[(df_entity.has_freebase | df_entity.has_target)]
@@ -160,9 +169,10 @@ def gen_entity_clusters_baseline(entity_h5, outdir):
             for _, rid in data:
                 r = ds.get_record(rid)
                 c.add(r)
-                fbid = r.fbid
-                if fbid and fbid not in c.fbids:
-                    c.fbids.add(fbid)
+                fbids = r.fbid
+                if fbids:
+                    for fbid in fbids:
+                        c.fbids.add(fbid)
             clusters[cid] = c
 
     print("merging")
@@ -191,13 +201,16 @@ def gen_entity_clusters_baseline(entity_h5, outdir):
         if r.has_freebase:
             print(r.id, r.target, r.fbid)
             for cid, c in clusters.items():
-                if r.fbid in c.fbids or r.fbid == cid:
+                r_fbids = set([f for f in r.fbid])
+                if bool(r_fbids & c.fbids) or cid in r.fbid:
                     c.add(r)
                     print('    --> ', c.cid)
                     merged = True
                     break
             if not merged:
-                c = Cluster(r.fbid, ds)
+                c = Cluster(r.fbid[0], ds)
+                for fbid in r.fbid:
+                    c.fbids.add(fbid)
                 c.add(r)
                 clusters[c.cid] = c
                 print('    new ', c.cid)

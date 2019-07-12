@@ -9,43 +9,44 @@ sys.path.append(kg_path)
 from Updater import Updater
 from datetime import datetime
 
-if __name__ == '__main__':
-    endpoint = sys.argv[1]  # without repo
-    repo = sys.argv[2]
-    if len(sys.argv) > 3:
-        graph = sys.argv[3]
-    else:
-        graph = None
 
-    endpoint_url = endpoint + '/' + repo
-    outdir = 'store_data/' + repo
+if __name__ == '__main__':
+    endpoint = 'http://gaiadev01.isi.edu:7200/repositories'
+    repo_src = 'cmu-ta1-0703'
+    repo_dst = 'cmu-ta2-0703'
+    graph = 'http://www.isi.edu/20190710-001'
+
+    endpoint_src = endpoint + '/' + repo_src
+    endpoint_dst = endpoint + '/' + repo_dst
+    srcdir = 'store_data/' + repo_src
+    outdir = 'store_data/' + repo_dst
 
     print("Endpoint: ", endpoint)
-    print("Repository: ", repo)
+    print("Src Repository: ", repo_src)
+    print("Dst Repository: ", repo_dst)
     print("Graph: ", graph)
 
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
 
     print('Generating dataframe... ', datetime.now().isoformat())
-    generate_dataframe(endpoint_url, outdir)
+    # generate_dataframe(endpoint_url, outdir)
 
     print('Augmenting dataframe with translation columns... ', datetime.now().isoformat())
-    add_trasl_cols(outdir + '/entity_all.h5', outdir)
+    # add_trasl_cols(outdir + '/entity_all.h5', outdir)
 
     print('Generating entity clusters... ', datetime.now().isoformat())
-    gen_entity_clusters_baseline(outdir + '/entity_trans_all_filtered.h5', outdir)
+    # gen_entity_clusters_baseline(outdir + '/entity_trans_all_filtered.h5', outdir)
 
     print('Generating event clusters... ', datetime.now().isoformat())
-    gen_event_clusters(endpoint_url, outdir)
+    gen_event_clusters(endpoint_src, outdir)
 
     print('Insert into GraphDB... ', datetime.now().isoformat())
-    up = Updater(endpoint_url, repo, outdir, graph, True)
-    up.run_load_jl()
-    up.run_delete_ori()
-    up.run_system()
-    up.run_entity_nt()
-    up.run_event_nt()
-    up.run_relation_nt()
-    # up.run_insert_proto()
-    # up.run_super_edge()
+    up = Updater(endpoint_src, endpoint_dst, repo_dst, outdir, graph, True)
+    # up.run_delete_ori()  # don't run this if repo already has named graph
+    # up.run_system()  # not needed if repo already has named graph
+    up.run_clusters(entity_clusters='clusters-20190710-001.jl')
+    up.run_insert_proto()
+    up.run_super_edge()
+    up.run_inf_just_nt()
+    up.run_links_nt()

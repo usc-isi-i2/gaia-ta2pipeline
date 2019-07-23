@@ -11,7 +11,7 @@ Each clustering on the same TA1 output is kept in the same TA2 repo on different
 2. Add translation columns to  [Currently done from Jupyter Notebook]
 3. Clustering [Currently done from Julypter Notebook]
 4. Generate singleton event clusters (`gen_event_clusters.py`)
-5. Generate AIF (see gaia-knowledge-graph/update_kg/Updater.py)
+5. Generate AIF (see `gaia-knowledge-graph/update_kg/Updater.py`)
 
     Triples are created and inserted into the TA2 output repo, specified named graph
     
@@ -22,19 +22,19 @@ Each clustering on the same TA1 output is kept in the same TA2 repo on different
     ```updater.run_system()```
     
     5.3. Insert clusters
-    ```up.run_clusters()```
+    ```upater.run_clusters()```
     
     5.4. Insert cluster prototypes
-    ```up.run_insert_proto()```
+    ```upater.run_insert_proto()```
     
     5.5. Insert superedges
-    ```up.run_super_edge()```
+    ```upater.run_super_edge()```
     
     5.6. Insert informative justifications for clusters
-    ```up.run_inf_just_nt()```
+    ```upater.run_inf_just_nt()```
     
     5.7. Insert links for entity clusters
-    ```up.run_links_nt()```
+    ```upater.run_links_nt()```
 
 ### TA2 AIF
 Export TA2 AIF from GraphDB by selecting the 

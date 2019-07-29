@@ -16,7 +16,7 @@ namespaces_str = """
 """
 
 
-def gen_event_clusters(endpoint_url, outdir):
+def gen_event_clusters(endpoint_url, outfile):
 
     endpoint = RemoteEndpoint(url=endpoint_url,
                               prefixes=inline(namespaces_str).graph)
@@ -35,6 +35,6 @@ def gen_event_clusters(endpoint_url, outdir):
 
     events = df['e'].apply(to_list).values.tolist()
 
-    with open(outdir + '/event-clusters.jl', 'w') as f:
+    with open(outfile, 'w') as f:
         for c in events:
             f.write(json.dumps(c) + '\n')

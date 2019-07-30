@@ -7,6 +7,7 @@ from Updater import Updater
 from datetime import datetime
 import papermill as pm
 from shutil import copyfile
+import configparser
 
 
 if __name__ == '__main__':
@@ -21,6 +22,23 @@ if __name__ == '__main__':
     outdir = '/nas/home/jchen/store_data/' + repo_dst
     cluster_nb = '/lfs1/jupyterhub_data_dir/share/yixiangy/ta2-er.ipynb'
     # ---------------
+
+    try:
+        params_file = sys.argv[1]
+    except IndexError:
+        print('Error: input parameter file required')
+        sys.exit(1)
+
+    config = configparser.ConfigParser()
+    config.read(params_file)
+    endpoint = config['DEFAULT']['endpoint']
+    repo_src = config['DEFAULT']['repo_src']
+    repo_dst = config['DEFAULT']['repo_dst']
+    graph = config['DEFAULT']['graph']
+    version = config['DEFAULT']['version']
+    delete_existing_clusters = config['DEFAULT'].getboolean('delete_existing_clusters')
+    outdir = config['DEFAULT']['outdir']
+    cluster_nb = config['DEFAULT']['cluster_nb']
 
     endpoint_src = endpoint + '/' + repo_src
     endpoint_dst = endpoint + '/' + repo_dst

@@ -27,7 +27,7 @@ outdir=/nas/home/jchen/store_data/jchen-test-ta2
 cluster_nb=/lfs1/jupyterhub_data_dir/share/yixiangy/ta2-er.ipynb
 ```
 
-The pipelne does the followings:
+The pipeline does the followings:
 1. Generate dataframe from source repo [Currently done from Jupyter Notebook]
 2. Add translation columns to  [Currently done from Jupyter Notebook]
 3. Clustering [Currently done from Julypter Notebook]

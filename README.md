@@ -11,7 +11,23 @@
 On the TA2 output repo, the TA1 AIF is imported to the default graph.
 Each clustering on the same TA1 output is kept in the same TA2 repo on different named graph
 
-### TA2 Pipeline - see `ta2_runner.py`
+### Run TA2 Pipeline (`ta2_runner.py` with parameter file as an argument)
+```python ta2_runner.py <input.param>```
+
+#### Sample parameter file:
+```
+[DEFAULT]
+endpoint=http://gaiadev01.isi.edu:7200/repositories
+repo_src=jchen-test-ta1
+repo_dst=jchen-test-ta2
+graph=http://www.isi.edu/002
+version=002
+delete_existing_clusters=False
+outdir=/nas/home/jchen/store_data/jchen-test-ta2
+cluster_nb=/lfs1/jupyterhub_data_dir/share/yixiangy/ta2-er.ipynb
+```
+
+The pipelne does the followings:
 1. Generate dataframe from source repo [Currently done from Jupyter Notebook]
 2. Add translation columns to  [Currently done from Jupyter Notebook]
 3. Clustering [Currently done from Julypter Notebook]

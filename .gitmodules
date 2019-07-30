@@ -1,3 +1,3 @@
 [submodule "gaia-knowledge-graph"]
 	path = gaia-knowledge-graph
-	url = https://shinyichen@github.com/shinyichen/gaia-knowledge-graph.git
+	url = https://github.com/usc-isi-i2/gaia-knowledge-graph.git

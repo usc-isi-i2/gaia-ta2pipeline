@@ -21,6 +21,7 @@ if __name__ == '__main__':
     delete_existing_clusters = False
     outdir = '/nas/home/jchen/store_data/' + repo_dst
     cluster_nb = 'er-rpi.ipynb'
+    kernel = 'venv'
     # ---------------
 
     try:
@@ -39,6 +40,7 @@ if __name__ == '__main__':
     delete_existing_clusters = config['DEFAULT'].getboolean('delete_existing_clusters')
     outdir = config['DEFAULT']['outdir']
     cluster_nb = config['DEFAULT']['cluster_nb']
+    kernel = config['DEFAULT']['kernel_name']
 
     endpoint_src = endpoint + '/' + repo_src
     endpoint_dst = endpoint + '/' + repo_dst
@@ -58,26 +60,28 @@ if __name__ == '__main__':
     print('Generating dataframe... ', datetime.now().isoformat())
     pm.execute_notebook(
         'GenerateDataframe2019.ipynb',
-        'GenerateDataframe2019.out.ipynb',
-        parameters=dict(endpoint_url=endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False)
+        outdir + '/GenerateDataframe2019.out.ipynb',
+        parameters=dict(endpoint_url=endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False),
+        kernel_name=kernel
     )
 
     print('Augmenting dataframe with translation columns... ', datetime.now().isoformat())
     pm.execute_notebook(
         'EntityTranslCols.ipynb',
-        'EntityTranslCols.out.ipynb',
-        parameters=dict(repo=repo_src, version=version, store_data_dir=outdir)
+        outdir + '/EntityTranslCols.out.ipynb',
+        parameters=dict(repo=repo_src, version=version, store_data_dir=outdir),
+        kernel_name=kernel
     )
 
     print('Generating entity clusters... ', datetime.now().isoformat())
     pm.execute_notebook(
         cluster_nb,
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/er.out.ipynb',
+        outdir + '/er.out.ipynb',
         parameters=dict(input_df_path=outdir + '/entity_trans_all_' + version + '.h5',
                         repo_name=repo_src,
                         version=version,
                         output_path=outdir + '/entity_clusters_' + version + '.jl'),
-        kernel_name='venv'
+        kernel_name=kernel
     )
 
     print('Generating event clusters... ', datetime.now().isoformat())

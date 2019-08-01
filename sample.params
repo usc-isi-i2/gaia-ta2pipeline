@@ -7,3 +7,4 @@ version=002
 delete_existing_clusters=False
 outdir=/nas/home/jchen/store_data/jchen-test-ta2
 cluster_nb=er-rpi.ipynb
+kernel_name=venv

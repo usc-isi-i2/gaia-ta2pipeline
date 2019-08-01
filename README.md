@@ -54,4 +54,10 @@ The pipeline does the followings:
       ```upater.run_links_nt()```
 
 ### TA2 AIF
-Export TA2 AIF from GraphDB 
+#### Export TA2 AIF from GraphDB 
+To export from the GraphDB GUI
+1. select the TA2 output repository
+2. Go to Explore --> Graphs overview 
+3. Check `The default graph` and the named graph `graph` specified in the parameter file
+4. Click on the `Export repository` dropdown and choose `Turtle`
+5. Select `Yes` on the warning dialog and AIF will download

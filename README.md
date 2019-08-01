@@ -29,8 +29,8 @@ cluster_nb=/lfs1/jupyterhub_data_dir/share/yixiangy/ta2-er.ipynb  # Notebook use
 
 The pipeline does the followings:
 1. Generate dataframe from source repo [Done from Jupyter Notebook]
-2. Add translation columns to  [Done from Jupyter Notebook]
-3. Clustering [Done from Julypter Notebook specified in the param]
+2. Add translation columns to dataframe [Done from Jupyter Notebook]
+3. Clustering [Done from Jupyter Notebook specified in the param]
 4. Generate singleton event clusters (`gen_event_clusters.py`)
 5. Generate AIF (`gaia-knowledge-graph/update_kg/Updater.py`)
 

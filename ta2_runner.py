@@ -20,7 +20,7 @@ if __name__ == '__main__':
     version = '001'
     delete_existing_clusters = False
     outdir = '/nas/home/jchen/store_data/' + repo_dst
-    cluster_nb = '/lfs1/jupyterhub_data_dir/share/yixiangy/ta2-er.ipynb'
+    cluster_nb = 'er-rpi.ipynb'
     # ---------------
 
     try:
@@ -57,23 +57,21 @@ if __name__ == '__main__':
 
     print('Generating dataframe... ', datetime.now().isoformat())
     pm.execute_notebook(
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/GenerateDataframe2019.ipynb',
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/GenerateDataframe2019.out.ipynb',
+        'GenerateDataframe2019.ipynb',
+        'GenerateDataframe2019.out.ipynb',
         parameters=dict(endpoint_url=endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False)
     )
 
     print('Augmenting dataframe with translation columns... ', datetime.now().isoformat())
     pm.execute_notebook(
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/EntityTranslCols.ipynb',
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/EntityTranslCols.out.ipynb',
+        'EntityTranslCols.ipynb',
+        'EntityTranslCols.out.ipynb',
         parameters=dict(repo=repo_src, version=version, store_data_dir=outdir)
     )
 
     print('Generating entity clusters... ', datetime.now().isoformat())
-    # gen_entity_clusters_baseline(outdir + '/entity_trans_all_filtered.h5', outdir)
-    copyfile(cluster_nb, '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/er.ipynb')
     pm.execute_notebook(
-        '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/er.ipynb',
+        cluster_nb,
         '/lfs1/jupyterhub_data_dir/share/jchen/generate-dataframe/er.out.ipynb',
         parameters=dict(input_df_path=outdir + '/entity_trans_all_' + version + '.h5',
                         repo_name=repo_src,

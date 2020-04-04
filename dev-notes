@@ -1,0 +1,30 @@
+$ gaia-ta2pipeline]$ docker build . --tag pipelinetest
+...
+Successfully tagged pipelinetest:latest
+$ docker run -itd --name f1 pipelinetest /bin/bash
+$ docker exec -it f1 /bin/bash
+root@eb40a19e6f4e:/aida/ta2-pipeline# python -V
+Python 3.6.3
+root@eb40a19e6f4e:/aida/ta2-pipeline# java -version
+openjdk version "1.8.0_242"
+OpenJDK Runtime Environment (Zulu 8.44.0.11-CA-linux64) (build 1.8.0_242-b20)
+OpenJDK 64-Bit Server VM (Zulu 8.44.0.11-CA-linux64) (build 25.242-b20, mixed mode)
+
+
+
+
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	.bigfiles/
+[napiersk@gaia01 gaia-ta2pipeline]$ ls -al ./.bigfiles/
+total 144036
+drwxr-xr-x 2 napiersk gaia_users        41 Apr  3 12:46 .
+drwxr-xr-x 9 napiersk gaia_users      4096 Apr  3 13:15 ..
+-rw-r--r-- 1 napiersk gaia_users 147487775 Apr  3 12:43 graphdb-free-9.1.1-dist.zip
+
+
+http://graphdb.ontotext.com/documentation/free/requirements.html
+
+Licensing
+GraphDB Free is free to use but not open-source. Before redistributing GraphDB Free, please contact us at graphdb-info@ontotext.com to obtain a permission.

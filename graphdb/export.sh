@@ -1,7 +1,7 @@
 source env.sh
 
-FILE="$0"
-REPO_NAME="$1"
+FILE="$1"
+REPO_NAME="$2"
 
 PARAMS_FILE=./export.params
 cat <<EOT > $PARAMS_FILE

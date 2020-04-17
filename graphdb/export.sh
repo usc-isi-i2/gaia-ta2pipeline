@@ -1,8 +1,11 @@
 source env.sh
 
+FILE="$0"
+REPO_NAME="$1"
+
 PARAMS_FILE=./export.params
 cat <<EOT > $PARAMS_FILE
-outputFile: ./${REPO_NAME}_exported.ttl
+outputFile: ${FILE}
 graphDbBaseDir: ${GRAPHDB_BASE}/data/
 repositoryId: ${REPO_NAME}
 EOT

@@ -1,5 +1,8 @@
 source env.sh
 
+REPO_NAME="$1"
+echo $REPO_NAME
+
 # create repo
 CONFIG_FILE=./config.ttl
 cat <<EOT > $CONFIG_FILE

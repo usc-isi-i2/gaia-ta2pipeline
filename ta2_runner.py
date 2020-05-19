@@ -21,6 +21,7 @@ if __name__ == '__main__':
     version = '001'
     delete_existing_clusters = False
     outdir = '/nas/home/jchen/store_data/' + repo_dst
+    kg_tab_dir_path = '/nas/gaia/corpora/LDC2019E43_AIDA_Phase_1_Evaluation_Reference_Knowledge_Base/data/'
     cluster_nb = 'er-rpi.ipynb'
     kernel = 'venv'
     # ---------------
@@ -35,6 +36,7 @@ if __name__ == '__main__':
     config.read(params_file)
     endpoint = config['DEFAULT']['endpoint']
     wikidata_sparql_endpoint = config['DEFAULT']['wikidata_sparql_endpoint']
+    kg_tab_dir_path = config['DEFAULT']['kg_tab_dir_path']
     repo_src = config['DEFAULT']['repo_src']
     repo_dst = config['DEFAULT']['repo_dst']
     graph = config['DEFAULT']['graph']
@@ -63,7 +65,8 @@ if __name__ == '__main__':
     pm.execute_notebook(
         'GenerateDataframe2019.ipynb',
         outdir + '/GenerateDataframe2019.out.ipynb',
-        parameters=dict(endpoint_url=endpoint, wikidata_sparql_endpoint=wikidata_sparql_endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False),
+        parameters=dict(endpoint_url=endpoint, wikidata_sparql_endpoint=wikidata_sparql_endpoint, 
+                        repo=repo_src, version=version, store_data_dir=outdir, add_origin=False),
         kernel_name=kernel
     )
 
@@ -82,6 +85,7 @@ if __name__ == '__main__':
         parameters=dict(input_df_path=outdir + '/entity_trans_all_' + version + '.h5',
                         repo_name=repo_src,
                         version=version,
+                        kg_tab_dir_path=kg_tab_dir_path,
                         output_path=outdir + '/entity_clusters_' + version + '.jl'),
         kernel_name=kernel
     )

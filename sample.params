@@ -1,5 +1,6 @@
 [DEFAULT]
 endpoint=http://gaiadev01.isi.edu:7200/repositories
+wikidata_sparql_endpoint=https://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql
 repo_src=jchen-test-ta1
 repo_dst=jchen-test-ta2
 graph=http://www.isi.edu/002

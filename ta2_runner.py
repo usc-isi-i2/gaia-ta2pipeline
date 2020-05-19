@@ -14,6 +14,7 @@ if __name__ == '__main__':
 
     # ----inputs----
     endpoint = 'http://gaiadev01.isi.edu:7200/repositories'
+    wikidata_sparql_endpoint = 'https://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql'
     repo_src = 'jchen-test-ta1'
     repo_dst = 'jchen-test-ta2'
     graph = 'http://www.isi.edu/001'
@@ -33,6 +34,7 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(params_file)
     endpoint = config['DEFAULT']['endpoint']
+    wikidata_sparql_endpoint = config['DEFAULT']['wikidata_sparql_endpoint']
     repo_src = config['DEFAULT']['repo_src']
     repo_dst = config['DEFAULT']['repo_dst']
     graph = config['DEFAULT']['graph']
@@ -61,7 +63,7 @@ if __name__ == '__main__':
     pm.execute_notebook(
         'GenerateDataframe2019.ipynb',
         outdir + '/GenerateDataframe2019.out.ipynb',
-        parameters=dict(endpoint_url=endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False),
+        parameters=dict(endpoint_url=endpoint, wikidata_sparql_endpoint=wikidata_sparql_endpoint, repo=repo_src, version=version, store_data_dir=outdir, add_origin=False),
         kernel_name=kernel
     )
 

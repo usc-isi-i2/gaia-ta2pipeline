@@ -6,7 +6,7 @@ FROM python:3.6.3
 
 LABEL maintainer=dan.napierski@toptal.com
 
-RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils && apt-get -y install unzip nano tree software-properties-common 
+RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils && apt-get -y install unzip nano tree software-properties-common jq vim
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9 && apt-add-repository 'deb http://repos.azulsystems.com/ubuntu stable main' && apt-get update && apt-get -y install zulu-8
 RUN pip install --upgrade pip
 
@@ -16,9 +16,14 @@ RUN unzip -qq graphdb-free-9.1.1-dist.zip
 ENV graphdb_home=/graphdb/graphdb-free-9.1.1
 ENV PATH=${PATH}:${graphdb_home}/bin
 
+WORKDIR /aida/nlp-util/
+COPY ./.private/nlp-util/ .
+
 WORKDIR /aida/ta2-pipeline/
 COPY . .
 
+RUN pip install ipykernel
+RUN python -m ipykernel install --user
 RUN pip install -r requirements.txt
 
 RUN graphdb -d -s

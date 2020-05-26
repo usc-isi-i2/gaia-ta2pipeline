@@ -1,0 +1,12 @@
+[DEFAULT]
+endpoint=http://localhost:7200/repositories
+wikidata_sparql_endpoint=https://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql
+kg_tab_dir_path=/upload/kg/
+repo_src=ta2-test-ta1
+repo_dst=ta2-test-ta2
+graph=http://www.isi.edu/001
+version=001
+delete_existing_clusters=False
+outdir=/upload/ta2-test-ta2
+cluster_nb=er-rpi.ipynb
+kernel_name=python3

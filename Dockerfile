@@ -16,8 +16,17 @@ RUN unzip -qq graphdb-free-9.1.1-dist.zip
 ENV graphdb_home=/graphdb/graphdb-free-9.1.1
 ENV PATH=${PATH}:${graphdb_home}/bin
 
+WORKDIR /maven/
+COPY ./.bigfiles/apache-maven-3.6.3-bin.tar.gz .
+RUN tar -xvf apache-maven-3.6.3-bin.tar.gz
+ENV M2_HOME='/maven/apache-maven-3.6.3'
+ENV PATH=${PATH}:${M2_HOME}/bin
+
 WORKDIR /aida/nlp-util/
 COPY ./.private/nlp-util/ .
+RUN java -version
+RUN mvn -version
+RUN mvn install
 
 WORKDIR /aida/ta2-pipeline/
 COPY . .

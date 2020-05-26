@@ -3,3 +3,8 @@ papermill
 requests
 networkx
 jellyfish
+tables
+langdetect
+googletrans
+google-cloud-translate==1.7.0
+rltk

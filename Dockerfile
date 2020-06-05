@@ -1,12 +1,12 @@
 FROM python:3.6.3
-#FROM openjdk:8
-#Why is tango-common prompting?#RUN apt-get -y update
-#FROM ontotext/graphdb:9.1.1-se
-# docker run -p 8200:7200 --name graphdb-test -t ontotext/graphdb:9.1.1-se
 
-LABEL maintainer=dan.napierski@toptal.com
+LABEL maintainer="dan.napierski@toptal.com"
+LABEL name="GAIA AIDA TA2"
+LABEL remarks="https://hub.docker.com/u/gaiaaida"
+LABEL version=0
+LABEL revision=1
 
-RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils && apt-get -y install unzip nano tree software-properties-common jq vim
+RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils locales unzip nano tree software-properties-common jq vim
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9 && apt-add-repository 'deb http://repos.azulsystems.com/ubuntu stable main' && apt-get update && apt-get -y install zulu-8
 RUN pip install --upgrade pip
 
@@ -15,8 +15,6 @@ COPY ./.bigfiles/graphdb-free-9.1.1-dist.zip .
 RUN unzip -qq graphdb-free-9.1.1-dist.zip
 ENV graphdb_home=/graphdb/graphdb-free-9.1.1
 ENV PATH=${PATH}:${graphdb_home}/bin
-COPY ./env.sh .
-RUN chmod u+x ./env.sh
 
 WORKDIR /maven/
 COPY ./.bigfiles/apache-maven-3.6.3-bin.tar.gz .
@@ -35,11 +33,13 @@ WORKDIR /aida/ta2-pipeline/
 COPY . .
 RUN chmod u+x ./entrypoint.sh
 
-RUN pip install ipykernel
-RUN python -m ipykernel install --user
-RUN pip install -r requirements.txt
+WORKDIR /aida/ta2-pipeline/graphdb/
+COPY ./env.sh .
+RUN chmod u+x ./env.sh
 
-ENV LC_ALL=en_US.UTF-8
-RUN graphdb -d -s
+WORKDIR /aida/ta2-pipeline/
+RUN pip install ipykernel && python -m ipykernel install --user && pip install -r requirements.txt && locale-gen en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
 
 CMD [ "/bin/bash", "" ]

@@ -38,8 +38,14 @@ COPY ./env.sh .
 RUN chmod u+x ./env.sh
 
 WORKDIR /aida/ta2-pipeline/
-RUN pip install ipykernel && python -m ipykernel install --user && pip install -r requirements.txt && locale-gen en_US.UTF-8
 
 ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+RUN pip install ipykernel && python -m ipykernel install --user && pip install -r requirements.txt 
+
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+RUN locale-gen
 
 CMD [ "/bin/bash", "" ]

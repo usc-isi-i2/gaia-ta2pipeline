@@ -48,4 +48,5 @@ RUN pip install ipykernel && python -m ipykernel install --user && pip install -
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 RUN locale-gen
 
-CMD [ "/bin/bash", "" ]
+#CMD [ "/bin/bash", "" ]
+ENTRYPOINT ["/bin/bash", "/aida/ta2-pipeline/entrypoint.sh"]

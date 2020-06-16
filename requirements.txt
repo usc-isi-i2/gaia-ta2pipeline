@@ -1,5 +1,6 @@
 gastrodon
 papermill
+pyopenssl
 requests
 networkx
 jellyfish

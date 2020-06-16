@@ -6,7 +6,7 @@ LABEL remarks="https://hub.docker.com/u/gaiaaida"
 LABEL version=0
 LABEL revision=1
 
-RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils locales unzip nano tree software-properties-common jq vim
+RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils locales unzip nano tree software-properties-common jq vim zip
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9 && apt-add-repository 'deb http://repos.azulsystems.com/ubuntu stable main' && apt-get update && apt-get -y install zulu-8
 RUN pip install --upgrade pip
 

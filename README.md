@@ -61,3 +61,46 @@ To export from the GraphDB GUI
 3. Check `The default graph` and the named graph `graph` specified in the parameter file
 4. Click on the `Export repository` dropdown and choose `Turtle`
 5. Select `Yes` on the warning dialog and AIF will download
+
+### Docker notes
+Either build the docker image:
+$ docker build . -t gaiaaida/ta2:latest
+or pull the image from dockerhub
+$ docker pull gaiaaida/ta2:latest
+
+Prepare data:
+$ mkdir ./input
+$ mkdir ./output
+$ cp ./test/for_ta2_pipeline_test.zip ./input/
+$ cp ./test/kg_test.zip ./input/
+$ cd ./input/
+$ unzip kg_test.zip 
+$ tree
+.
+├── for_ta2_pipeline_test.zip
+├── kg
+│   ├── alternate_names.tab
+│   ├── entities.tab
+│   └── member_states.tab
+└── kg_test.zip
+
+1 directory, 5 files
+$ cd ..
+
+Run the docker container:
+$ docker run --name=ta2-test -v $(pwd)/input/:/input/ -v $(pwd)/output/:/output/ gaiaaida/ta2:latest
+
+Observer the results:
+$ tree ./output/
+./output/
+├── export.ttl
+└── ta2-test-ta2
+    ├── document_001.h5
+    ├── entity_valid_001.h5
+    ├── entity_with_labels_001.h5
+    ├── GenerateDataframe2019.out.ipynb
+    ├── relation_001.h5
+    └── relation_roles_001.h5
+
+1 directory, 7 files
+

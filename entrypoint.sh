@@ -8,9 +8,9 @@ sleep 5s
 ./stop.sh
 
 # import data
-./import.sh /upload/for_ta2_pipeline_test.zip ta2-test-ta1
+./import.sh /input/for_ta2_pipeline_test.zip ta2-test-ta1
 sleep 5s
-./import.sh /upload/for_ta2_pipeline_test.zip ta2-test-ta2
+./import.sh /input/for_ta2_pipeline_test.zip ta2-test-ta2
 sleep 5s
 
 # run ta2 algorithm
@@ -21,4 +21,4 @@ cd graphdb
 ./stop.sh
 
 # export data
-./export.sh /upload/export.ttl ta2-test-ta2
+./export.sh /output/export.ttl ta2-test-ta2

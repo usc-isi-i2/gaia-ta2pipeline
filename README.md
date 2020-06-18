@@ -63,12 +63,13 @@ To export from the GraphDB GUI
 5. Select `Yes` on the warning dialog and AIF will download
 
 ### Docker notes
-Either build the docker image:
+```
+# Either build the docker image:
 $ docker build . -t gaiaaida/ta2:latest
-or pull the image from dockerhub
+# or pull the image from dockerhub
 $ docker pull gaiaaida/ta2:latest
 
-Prepare data:
+# Prepare data:
 $ mkdir ./input
 $ mkdir ./output
 $ cp ./test/for_ta2_pipeline_test.zip ./input/
@@ -87,10 +88,10 @@ $ tree
 1 directory, 5 files
 $ cd ..
 
-Run the docker container:
+# Run the docker container:
 $ docker run --name=ta2-test -v $(pwd)/input/:/input/ -v $(pwd)/output/:/output/ gaiaaida/ta2:latest
 
-Observer the results:
+# Observer the results:
 $ tree ./output/
 ./output/
 ├── export.ttl
@@ -103,4 +104,4 @@ $ tree ./output/
     └── relation_roles_001.h5
 
 1 directory, 7 files
-
+```

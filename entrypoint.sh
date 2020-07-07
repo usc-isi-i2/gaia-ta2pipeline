@@ -43,7 +43,7 @@ cat <<EOT > $PARAMS_FILE
 [DEFAULT]
 endpoint=http://localhost:7200/repositories
 wikidata_sparql_endpoint=https://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql
-kg_tab_dir_path=${REPO_KB}/
+kg_tab_dir_path=${REPO_KB}/data/
 repo_src=${REPO_TA1_NIST}
 repo_dst=${REPO_TA2_NIST}
 graph=http://www.isi.edu/001
@@ -90,7 +90,7 @@ cat <<EOT > $PARAMS_FILE
 [DEFAULT]
 endpoint=http://localhost:7200/repositories
 wikidata_sparql_endpoint=https://dsbox02.isi.edu:8888/bigdata/namespace/wdq/sparql
-kg_tab_dir_path=${REPO_KB}/
+kg_tab_dir_path=${REPO_KB}/data/
 repo_src=${REPO_TA1_INTER_TA}
 repo_dst=${REPO_TA2_INTER_TA}
 graph=http://www.isi.edu/001

@@ -27,6 +27,7 @@ cd /aida/ta2-pipeline/graphdb
 sleep 5s
 ./create.sh "${REPO_TA2_NIST}"
 sleep 5s
+./stop.sh
 
 # import data
 ./import.sh "${INPUT_NIST}" "${REPO_TA1_NIST}"
@@ -74,6 +75,7 @@ cd /aida/ta2-pipeline/graphdb
 sleep 5s
 ./create.sh "${REPO_TA2_INTER_TA}"
 sleep 5s
+./stop.sh
 
 # import data
 ./import.sh "${INPUT_INTER_TA}" "${REPO_TA1_INTER_TA}"

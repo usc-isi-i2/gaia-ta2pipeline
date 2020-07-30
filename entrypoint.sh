@@ -58,6 +58,7 @@ EOT
 python ta2_runner.py $PARAMS_FILE
 cd graphdb
 ./stop.sh
+cd ..
 rm $PARAMS_FILE
 
 # export data
@@ -106,6 +107,7 @@ EOT
 python ta2_runner.py $PARAMS_FILE
 cd graphdb
 ./stop.sh
+cd ..
 rm $PARAMS_FILE
 
 # export data

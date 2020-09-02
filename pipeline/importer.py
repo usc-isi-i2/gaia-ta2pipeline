@@ -209,6 +209,21 @@ class Importer(object):
         df_fb[['fbid', 'fbid_score_avg', 'fbid_score_max']] = df_fb['json'].apply(getFBIDs)
         df_fb = df_fb.drop(columns=['json'])
 
+        def merge_fb(fb):
+            fbid = []
+            fbid_score_avg = []
+            fbid_score_max = []
+            for t in fb['fbid'].tolist():
+                fbid += list(t)
+            for t in fb['fbid_score_avg'].tolist():
+                fbid_score_avg += list(t)
+            for t in fb['fbid_score_max'].tolist():
+                fbid_score_max += list(t)
+            return pd.Series(
+                {'fbid': tuple(fbid), 'fbid_score_avg': tuple(fbid_score_avg), 'fbid_score_max': tuple(fbid_score_max)})
+
+        df_fb = df_fb.groupby('e')[['fbid', 'fbid_score_avg', 'fbid_score_max']].apply(merge_fb).reset_index()
+
         ### embedding vector
         self.logger.info('creating embedding vector')
         self.exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
@@ -341,7 +356,6 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity, df_name, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_type, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_target, how='left')
-        df_entity_complete = pd.merge(df_entity_complete, df_target, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_wd, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
@@ -350,12 +364,14 @@ class Importer(object):
         ### export
         if not self.validate_entity_df(df_entity_complete):
             self.logger.error('Invalid dataframe, please check input data')
+            df_entity_complete.to_csv(output_file + '.invalid.csv')
         else:
             self.logger.info('exporting df')
             # df_entity_complete.to_csv(output_file, index=False)
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 df_entity_complete.to_hdf(output_file, 'entity', mode='w', format='fixed')
+                df_entity_complete.to_csv(output_file + '.csv')
 
     def validate_entity_df(self, df):
         # for idx, r in df.iterrows():
@@ -450,7 +466,7 @@ def process():
     )
     pp.start()
 
-    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl.nt')):
+    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], 'HC0000A1T.ttl.nt')):
         source = os.path.basename(infile).split('.')[0]
         pp.add_task(source)
         logger.info('adding task %s' % source)

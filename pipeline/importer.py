@@ -30,10 +30,19 @@ class Importer(object):
 
         kgtk_file = os.path.join(self.temp_dir, '{}.ttl.nt'.format(self.source))
         unreified_kgtk_file = kgtk_file + '.unreified'
-        output_file = os.path.join(self.temp_dir, '{}.entity.h5'.format(self.source))
+        entity_outfile = os.path.join(self.temp_dir, '{}.entity.h5'.format(self.source))
+        event_outfile = os.path.join(self.temp_dir, '{}.event.h5'.format(self.source))
+        event_role_outfile = os.path.join(self.temp_dir, '{}.event_role.h5'.format(self.source))
+        relation_outfile = os.path.join(self.temp_dir, '{}.relation.h5'.format(self.source))
+        relation_role_outfile = os.path.join(self.temp_dir, '{}.relation_role.h5'.format(self.source))
+
         # self.convert_nt_to_kgtk(self.infile, kgtk_file)
         # self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
-        self.create_entity_df(kgtk_file, unreified_kgtk_file, output_file, self.source, ldc_kg, df_wd_fb)
+        self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
+        self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+        self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
+        self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
+        self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
 
         # os.remove(kgtk_file)
         # os.remove(unreified_kgtk_file)
@@ -107,7 +116,7 @@ class Importer(object):
         ### id
         self.logger.info('creating id')
         self.exec_sh('kgtk filter -p ";rdf:type;aida:Entity" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+                .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
         df_entity = pd.read_csv(self.tmp_file_path(), delimiter='\t')
         df_entity = pd.DataFrame({'e': df_entity['node1']})
 
@@ -381,6 +390,173 @@ class Importer(object):
             return False
 
         return True
+
+    def create_event_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+        self.logger.info('creating event df for ' + source)
+
+        ### id
+        self.logger.info('creating id')
+        self.exec_sh('kgtk filter -p ";rdf:type;aida:Event" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
+        df_event = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label'])\
+            .rename(columns={'node1': 'e'})
+
+        ### type
+        self.logger.info('creating type')
+        self.exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Event" > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
+        df_event_type = pd.merge(df_event, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
+
+        ### name
+        self.logger.info('creating name')
+        self.exec_sh('kgtk filter -p ";skos:prefLabel;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label'])\
+            .rename(columns={'node1': 'e', 'node2': 'name'})
+
+        ### informative justification
+        self.logger.info('creating informative justification')
+        df_event_infojust = self.predicate_path(unreified_kgtk_file,
+                                           'aida:informativeJustification/aida:confidence/aida:confidenceValue',
+                                           retain_intermediate=True) \
+            .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
+            .drop(columns=['inter_2'])
+        df_event_infojust = pd.merge(df_event, df_event_infojust, left_on='e',
+                                     right_on='e')  # .drop(columns=['label', 'id'])
+
+        ### justified by
+        self.logger.info('creating justified by')
+        df_event_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
+                                       retain_intermediate=True) \
+            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
+            .drop(columns=['inter_2'])
+        df_event_just = pd.merge(df_event, df_event_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
+
+        def merge_event_just(v):
+            if len(v.index > 0):
+                confidence = tuple(v['just_confidence'].to_list())
+                justified_by = tuple(v['justified_by'].to_list())
+                return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
+
+        df_event_just = df_event_just.groupby('e')[['just_confidence', 'justified_by']].apply(
+            merge_event_just).reset_index()
+
+
+        ### merge
+        df_event_complete = pd.merge(df_event, df_event_type, how='left')
+        df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
+        df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
+        df_event_complete['source'] = source
+
+        ### export
+        self.logger.info('exporting df')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            df_event_complete.to_hdf(output_file, 'event', mode='w', format='fixed')
+            df_event_complete.to_csv(output_file + '.csv')
+
+    def create_event_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+        self.logger.info('creating event role df for ' + source)
+        self.exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        self.exec_sh("awk -F'\t' '$1 ~ /^event:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} > {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
+        df_event_role = pd.DataFrame(columns=['event', 'role', 'entity'])
+        try:
+            df_event_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t').rename(
+                columns={'node1': 'entity', 'label': 'role', 'node2': 'event'})
+            df_event_role['source'] = source
+        except pd.errors.EmptyDataError:
+            pass
+
+        ### export
+        self.logger.info('exporting df')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            df_event_role.to_hdf(output_file, 'event_role', mode='w', format='fixed')
+            df_event_role.to_csv(output_file + '.csv')
+
+    def create_relation_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+        self.logger.info('creating relation df for ' + source)
+
+        ### id
+        self.logger.info('creating id')
+        self.exec_sh('kgtk filter -p ";rdf:type;aida:Relation" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
+        df_relation = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label']).rename(
+            columns={'node1': 'e'})
+
+        ### type
+        self.logger.info('creating type')
+        self.exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Relation" > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
+        df_relation_type = pd.merge(df_relation, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
+
+        ### info just
+        self.logger.info('creating informative justification')
+        df_relation_infojust = self.predicate_path(unreified_kgtk_file,
+                                              'aida:informativeJustification/aida:confidence/aida:confidenceValue',
+                                              retain_intermediate=True) \
+            .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
+            .drop(columns=['inter_2'])
+        df_relation_infojust = pd.merge(df_relation, df_relation_infojust, left_on='e',
+                                        right_on='e')  # .drop(columns=['label', 'id'])
+
+        ### justified by
+        self.logger.info('creating justified by')
+        df_relation_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
+                                          retain_intermediate=True) \
+            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
+            .drop(columns=['inter_2'])
+        df_relation_just = pd.merge(df_relation, df_relation_just, left_on='e',
+                                    right_on='e')  # .drop(columns=['label', 'id'])
+
+        def merge_relation_just(v):
+            if len(v.index > 0):
+                confidence = tuple(v['just_confidence'].to_list())
+                justified_by = tuple(v['justified_by'].to_list())
+                return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
+
+        df_relation_just = df_relation_just.groupby('e')[['just_confidence', 'justified_by']].apply(
+            merge_relation_just).reset_index()
+
+        ### merge
+        df_relation_complete = pd.merge(df_relation, df_relation_type, how='left')
+        df_relation_complete = pd.merge(df_relation_complete, df_relation_infojust, how='left')
+        df_relation_complete = pd.merge(df_relation_complete, df_relation_just, how='left')
+        df_relation_complete['source'] = source
+
+        ### export
+        self.logger.info('exporting df')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            df_relation_complete.to_hdf(output_file, 'relation', mode='w', format='fixed')
+            df_relation_complete.to_csv(output_file + '.csv')
+
+    def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+        self.logger.info('creating relation role df for ' + source)
+        self.exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        self.exec_sh('echo -e "relation\trole\tentity" > {tmp_file1}'.format(tmp_file1=self.tmp_file_path(1)))
+        self.exec_sh("awk -F'\t' '$1 ~ /^relation:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
+        self.exec_sh("awk -F'\t' '$1 ~ /^columbia:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
+        df_relation_role = pd.DataFrame(columns=['relation', 'role', 'entity'])
+        try:
+            df_relation_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t', index_col=False)
+            df_relation_role['source'] = source
+        except pd.errors.EmptyDataError:
+            pass
+
+        ### export
+        self.logger.info('exporting df')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            df_relation_role.to_hdf(output_file, 'relation_role', mode='w', format='fixed')
+            df_relation_role.to_csv(output_file + '.csv')
 
 
 def convert_nan_to_none(df):

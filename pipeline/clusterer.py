@@ -11,10 +11,12 @@ import string
 from collections import defaultdict
 import glob
 import warnings
-from config import config, logger
+from config import config, get_logger
 from operator import itemgetter
 import rltk
 
+
+logger = get_logger('clusterer')
 
 def flatten(list_, remove_none=True):
     # flatten([1,2,3,4, [2,2,4],[13,[2,3,2]]])
@@ -179,7 +181,7 @@ class Cluster(object):
 
     def generate(self):
         self.feature_entity_id = deepcopy(self.all_records.pop())
-        self.prototype = self.feature_entity_id + '-prototype-' + self.id_
+        self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 
 
@@ -195,9 +197,10 @@ def process():
     df_entity = pd.DataFrame()
 
     logger.info('loading entity dataframes')
-    for infile in glob.glob(os.path.join(config['temp_dir'], '*.entity.h5')):
+    for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
         df_entity = df_entity.append(pd.read_hdf(infile))
+    df_entity = df_entity.reset_index(drop=True)
     logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
@@ -363,9 +366,9 @@ def process():
     df_entity_cluster = df_entity_ori.copy()
     df_entity_cluster['cluster'] = None
     df_entity_cluster['synthetic'] = False
-    for idx, row in df_entity_cluster.iterrows():
-        e = row['e']
-        df_entity_cluster.at[idx, 'cluster'] = tuple([c.full_id for c in entity_to_cluster[e]])
+    for idx, e in df_entity_cluster['e'].items():
+        clusters = tuple(set([c.full_id for c in entity_to_cluster[e]]))
+        df_entity_cluster.at[idx, 'cluster'] = clusters
 
     df_prototypes = pd.DataFrame(columns=df_entity_cluster.columns)
     for c in final_clusters:
@@ -376,9 +379,10 @@ def process():
         df_prototypes = df_prototypes.append(p)
 
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
-    # df_complete_entity_clusters.reset_index()
+    df_complete_entity_clusters.reset_index(drop=True)
 
     output_file = os.path.join(config['temp_dir'], 'entity_cluster.h5')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         df_complete_entity_clusters.to_hdf(output_file, 'entity', mode='w', format='fixed')
+        df_complete_entity_clusters.to_csv(output_file + '.csv')

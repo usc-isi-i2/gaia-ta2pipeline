@@ -1,4 +1,4 @@
-kgtk
-rltk
+kgtk==0.3.2
+rltk==2.0.0a15
 tables
-pyrallel
+pyrallel.lib==0.0.8

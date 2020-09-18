@@ -9,12 +9,15 @@ docker-run:
        	-e INPUT=/input \
        	-e OUTPUT=/output \
        	-e REPO_KB=/kb \
-       	-e RUN_NAME='' \
+       	-e RUN_NAME=m36 \
        	-e TEMP=/aida/tmp \
        	-e RES=/aida/res \
+       	-e NUM_PROC=6 \
        	-v $$(pwd)/../pipeline_test/input:/input:ro \
        	-v $$(pwd)/../pipeline_test/output:/output \
-       	-v $$(pwd)/../pipeline_test/ldc:/kb \
+       	-v $$(pwd)/../pipeline_test/LDC2020E27:/kb \
        	-v $$(pwd)/../pipeline_test/temp:/aida/tmp \
        	-v $$(pwd)/../pipeline_test/res:/aida/res \
-        --entrypoint /bin/bash gaia-ta2-test
+       	-v $$(pwd):/aida/ta2-pipeline \
+       	--entrypoint /bin/bash gaia-ta2-test
+        

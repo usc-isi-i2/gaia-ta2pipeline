@@ -21,28 +21,35 @@ class Importer(object):
     def __init__(self, source):
         self.source = source
         self.logger = get_logger('importer-' + source)
-        self.infile = os.path.join(config['input_dir'], config['run_name'], '{}.ttl.nt'.format(source))
+        self.infile = os.path.join(config['input_dir'], config['run_name'], '{}.ttl'.format(source))
         self.temp_dir = os.path.join(config['temp_dir'], config['run_name'], source)
 
     def run(self):
         global ldc_kg, df_wd_fb
         os.makedirs(self.temp_dir, exist_ok=True)
 
-        kgtk_file = os.path.join(self.temp_dir, '{}.ttl.nt'.format(self.source))
-        unreified_kgtk_file = kgtk_file + '.unreified'
-        entity_outfile = os.path.join(self.temp_dir, '{}.entity.h5'.format(self.source))
-        event_outfile = os.path.join(self.temp_dir, '{}.event.h5'.format(self.source))
-        event_role_outfile = os.path.join(self.temp_dir, '{}.event_role.h5'.format(self.source))
-        relation_outfile = os.path.join(self.temp_dir, '{}.relation.h5'.format(self.source))
-        relation_role_outfile = os.path.join(self.temp_dir, '{}.relation_role.h5'.format(self.source))
+        try:
 
-        # self.convert_nt_to_kgtk(self.infile, kgtk_file)
-        # self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
-        self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
-        self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
-        self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
-        self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
-        self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
+            nt_file = os.path.join(self.temp_dir, '{}.nt'.format(self.source))
+            kgtk_file = os.path.join(self.temp_dir, '{}.tsv'.format(self.source))
+            unreified_kgtk_file = kgtk_file + '.unreified'
+            entity_outfile = os.path.join(self.temp_dir, '{}.entity.h5'.format(self.source))
+            event_outfile = os.path.join(self.temp_dir, '{}.event.h5'.format(self.source))
+            event_role_outfile = os.path.join(self.temp_dir, '{}.event_role.h5'.format(self.source))
+            relation_outfile = os.path.join(self.temp_dir, '{}.relation.h5'.format(self.source))
+            relation_role_outfile = os.path.join(self.temp_dir, '{}.relation_role.h5'.format(self.source))
+
+            # self.convert_ttl_to_nt(self.infile, nt_file)
+            # self.convert_nt_to_kgtk(nt_file, kgtk_file)
+            # self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
+            self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
+            self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+            self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
+            self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
+            self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
+
+        except:
+            self.logger.exception('Exception caught in Importer.run()')
 
         # os.remove(kgtk_file)
         # os.remove(unreified_kgtk_file)
@@ -95,15 +102,22 @@ class Importer(object):
 
         return pd_tmp1
 
+    def convert_ttl_to_nt(self, ttl_file, nt_file):
+        self.logger.info('converting ttl to nt')
+        self.exec_sh('graphy read -c ttl / write -c nt < {ttl} > {nt}'
+                     .format(ttl=ttl_file, nt=nt_file))
+
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')
         self.exec_sh('''kgtk import-ntriples \
       --namespace-file {ns_file} \
       --namespace-id-use-uuid False \
       --newnode-use-uuid False \
+      --local-namespace-use-uuid True \
+      --local-namespace-prefix {source} \
       --local-namespace-use-uuid False \
       -i {nt_file} > {kgtk_file}'''
-        .format(ns_file=config['namespace_file'], nt_file=nt_file, kgtk_file=kgtk_file))
+        .format(ns_file=config['namespace_file'], source=self.source, nt_file=nt_file, kgtk_file=kgtk_file))
 
     def unreify_kgtk(self, infile, outfile):
         self.logger.info('unreify kgtk')
@@ -166,7 +180,7 @@ class Importer(object):
                 target_name = []
                 for t in targets:
                     kb_version, target_id = t.split(':')
-                    if kb_version != 'LDC2019E43':
+                    if kb_version != 'REFKB':  # 'LDC2019E43'
                         target_type.append(None)
                         target_name.append(None)
                         continue
@@ -215,8 +229,12 @@ class Importer(object):
             else:
                 return pd.Series({'fbid': tuple([]), 'fbid_score_avg': tuple([]), 'fbid_score_max': tuple([])})
 
-        df_fb[['fbid', 'fbid_score_avg', 'fbid_score_max']] = df_fb['json'].apply(getFBIDs)
-        df_fb = df_fb.drop(columns=['json'])
+        df_fb['fbid'] = None
+        df_fb['fbid_score_avg'] = None
+        df_fb['fbid_score_max'] = None
+        if len(df_fb) > 0:
+            df_fb[['fbid', 'fbid_score_avg', 'fbid_score_max']] = df_fb['json'].apply(getFBIDs)
+            df_fb = df_fb.drop(columns=['json'])
 
         def merge_fb(fb):
             fbid = []
@@ -231,7 +249,8 @@ class Importer(object):
             return pd.Series(
                 {'fbid': tuple(fbid), 'fbid_score_avg': tuple(fbid_score_avg), 'fbid_score_max': tuple(fbid_score_max)})
 
-        df_fb = df_fb.groupby('e')[['fbid', 'fbid_score_avg', 'fbid_score_max']].apply(merge_fb).reset_index()
+        if len(df_fb) > 0:
+            df_fb = df_fb.groupby('e')[['fbid', 'fbid_score_avg', 'fbid_score_max']].apply(merge_fb).reset_index()
 
         ### embedding vector
         self.logger.info('creating embedding vector')
@@ -642,7 +661,7 @@ def process():
     )
     pp.start()
 
-    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], 'HC0000A1T.ttl.nt')):
+    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], 'KC003A6NA.ttl')):
         source = os.path.basename(infile).split('.')[0]
         pp.add_task(source)
         logger.info('adding task %s' % source)
@@ -653,6 +672,7 @@ def process():
 
 
 if __name__ == '__main__':
+    # ls | xargs -I {} bash -c 'graphy read -c ttl / write -c nt < {} > {}.nt'
     argv = sys.argv
     if argv[1] == 'process':
         process()

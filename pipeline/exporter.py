@@ -2,12 +2,13 @@ import pandas as pd
 import glob
 import os
 import sys
+import re
+from collections import defaultdict
 from config import config, get_logger
 
 
 # run validator
-# docker run --rm -it -v $(pwd):/v -e VALIDATION_HOME=/opt/aif-validator \
-# -e VALIDATION_FLAGS=--ldc-e TARGET_TO_VALIDATE=/v -name aifvalidator nextcenturycorp/aif_validator
+# docker run --rm -it -v /tmp/aif_validator:/v -e VALIDATION_HOME=/opt/aif-validator -e VALIDATION_FLAGS=--ldc -e TARGET_TO_VALIDATE=/v --name aifvalidator nextcenturycorp/aif_validator
 
 
 logger = get_logger('exporter')
@@ -183,7 +184,39 @@ class Exporter(object):
 def process():
 
     logger.info('exporting entity clusters')
+
+    output_dir = os.path.join(config['output_dir'], config['run_name'])
+    os.makedirs(output_dir, exist_ok=True)
+
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')):
-        outfile = os.path.join(config['output_dir'], config['run_name'], 'ta2_entity_cluster.ttl')
+        outfile = os.path.join(output_dir, 'ta2_entity_cluster.ttl')
         exporter = Exporter(infile, outfile)
         exporter.run()
+
+
+    # # assign bnode globally unique id
+    # counter = [0]
+    # re_bnode = re.compile(r'_:([a-z0-9]+)')
+    # ta1_concatenated_file = os.path.join(config['temp_dir'], config['run_name'], 'ta1_concatenated.nt')
+    # for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl.nt')):
+    #     source = os.path.basename(infile).split('.')[0]
+    #
+    #     bnode_mapping = {}
+    #
+    #     def replace_bnode(bnode, counter):
+    #         if bnode not in bnode_mapping:
+    #             bnode_mapping[bnode] = counter[0]
+    #             counter[0] += 1
+    #         return '_:b{}'.format(bnode_mapping[bnode])
+    #
+    #     fout = open(ta1_concatenated_file, 'w')
+    #     with open(infile, 'r') as fin:
+    #         for idx, line in enumerate(fin):
+    #             fout.write(re_bnode.sub(lambda x: replace_bnode(x.group(), counter), line))
+    #     fout.close()
+
+
+if __name__ == '__main__':
+    argv = sys.argv
+    if argv[1] == 'process':
+        process()

@@ -381,8 +381,15 @@ def process():
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
     df_complete_entity_clusters.reset_index(drop=True)
 
-    output_file = os.path.join(config['temp_dir'], 'entity_cluster.h5')
+    output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         df_complete_entity_clusters.to_hdf(output_file, 'entity', mode='w', format='fixed')
         df_complete_entity_clusters.to_csv(output_file + '.csv')
+
+
+if __name__ == '__main__':
+    argv = sys.argv
+    if argv[1] == 'process':
+        process()
+

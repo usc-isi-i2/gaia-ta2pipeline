@@ -39,9 +39,9 @@ class Importer(object):
             relation_outfile = os.path.join(self.temp_dir, '{}.relation.h5'.format(self.source))
             relation_role_outfile = os.path.join(self.temp_dir, '{}.relation_role.h5'.format(self.source))
 
-            # self.convert_ttl_to_nt(self.infile, nt_file)
-            # self.convert_nt_to_kgtk(nt_file, kgtk_file)
-            # self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
+            self.convert_ttl_to_nt(self.infile, nt_file)
+            self.convert_nt_to_kgtk(nt_file, kgtk_file)
+            self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
             self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
             self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
@@ -661,7 +661,7 @@ def process():
     )
     pp.start()
 
-    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], 'KC003A6NA.ttl')):
+    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl')):
         source = os.path.basename(infile).split('.')[0]
         pp.add_task(source)
         logger.info('adding task %s' % source)
@@ -672,7 +672,6 @@ def process():
 
 
 if __name__ == '__main__':
-    # ls | xargs -I {} bash -c 'graphy read -c ttl / write -c nt < {} > {}.nt'
     argv = sys.argv
     if argv[1] == 'process':
         process()

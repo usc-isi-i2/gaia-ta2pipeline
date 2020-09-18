@@ -4,7 +4,7 @@ import glob
 from config import config
 import importer
 import clusterer
-
+import exporter
 
 
 if __name__ == '__main__':
@@ -16,3 +16,6 @@ if __name__ == '__main__':
 
     # clustering
     clusterer.process()
+
+    # export
+    exporter.process()

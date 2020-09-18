@@ -7,6 +7,8 @@ LABEL version=0
 LABEL revision=1
 
 RUN apt-get upgrade && apt-get -y update && apt-get -y install apt-utils locales unzip nano tree software-properties-common jq vim zip
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -yq nodejs build-essential
+RUN npm install -g npm && npm install --global graphy
 RUN pip install --upgrade pip
 
 

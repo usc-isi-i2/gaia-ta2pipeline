@@ -26,18 +26,18 @@ ENTITY_ASSERTION_TEMPLATE = """{}  a        rdf:Statement ;
         rdf:subject       {} ;
         aida:confidence   [ a                     aida:Confidence ;
                             aida:confidenceValue  "1.0"^^xsd:double ;
-                            aida:system           gaia:TA1
+                            aida:system           gaia:TA2
                           ] ;
         aida:justifiedBy  [ a                        aida:TextJustification ;
                             aida:confidence          [ a                     aida:Confidence ;
                                                        aida:confidenceValue  "1.0"^^xsd:double ;
-                                                       aida:system           gaia:TA1
+                                                       aida:system           gaia:TA2
                                                      ] ;
                             aida:source              "{}" ;
                             aida:sourceDocument      "{}" ;
-                            aida:system              gaia:TA1
+                            aida:system              gaia:TA2
                           ] ;
-        aida:system       gaia:TA1 .\n"""
+        aida:system       gaia:TA2 .\n"""
 
 MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
   aida:cluster        {} ;
@@ -76,6 +76,7 @@ class Exporter(object):
         self.n = self.df.shape[0]
         self.entities = None
         self.clusters = set()
+        self.ns_mapping = self.__class__.generate_name_space()
 
     @classmethod
     def generate_name_space(cls):
@@ -89,6 +90,13 @@ class Exporter(object):
             name_space[record["node1"]] = record["node2"]
         return name_space
 
+    def extend_prefix(self, s):
+        ss = s.split(':')
+        if len(ss) > 1:
+            p = ss[0]
+            s = self.ns_mapping.get(p, p) + ':'.join(ss[1:])
+        return '<{}>'.format(s)
+
     def run(self):
         self.declare_prefix()
         self.declare_entity()
@@ -101,7 +109,8 @@ class Exporter(object):
         self.fp.close()
 
     def declare_prefix(self):
-        prefix_dict = self.__class__.generate_name_space()
+        # prefix_dict = self.__class__.generate_name_space()
+        prefix_dict = self.ns_mapping
         prefix_list = ["@prefix {}: <{}> .".format(pre, url) for
                        pre, url in prefix_dict.items()]
         self.write("\n".join(prefix_list) + "\n")
@@ -116,6 +125,8 @@ class Exporter(object):
         for entity in self.entities:
             # TODO bypass columbia illegal delcaration
             if self.__class__.legal_filter(entity):
+                entity = self.extend_prefix(entity)
+                print(entity)
                 entity_statement = ENTITY_TEMPLATE.format(entity)
                 self.write(entity_statement)
 
@@ -137,6 +148,8 @@ class Exporter(object):
             cluster = cluster[0]
             if cluster not in self.clusters and self.__class__.legal_filter(cluster):
                 self.clusters.add(cluster)
+                cluster = self.extend_prefix(cluster)
+                proto = self.extend_prefix(proto)
                 cluster_info = CLUSTER_TEMPLATE.format(cluster,
                                                        proto)
                 self.write(cluster_info)
@@ -159,11 +172,15 @@ class Exporter(object):
             if type(cluster) == tuple:
                 for cluster_ in cluster:
                     if self.__class__.legal_filter(cluster_, entity):
+                        cluster_ = self.extend_prefix(cluster_)
+                        entity = self.extend_prefix(entity)
                         membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
                         self.write(membership_info)
             else:
                 cluster_ = cluster
                 if self.__class__.legal_filter(cluster_, entity):
+                    cluster_ = self.extend_prefix(cluster_)
+                    entity = self.extend_prefix(entity)
                     membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
                     self.write(membership_info)
 

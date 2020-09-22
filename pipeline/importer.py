@@ -43,10 +43,10 @@ class Importer(object):
             self.convert_nt_to_kgtk(nt_file, kgtk_file)
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
-            self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
-            self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
-            self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
-            self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
+            # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+            # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
+            # self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
+            # self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
 
         except:
             self.logger.exception('Exception caught in Importer.run()')
@@ -199,7 +199,7 @@ class Importer(object):
         self.logger.info('creating freebase')
         self.exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh('kgtk filter -p ";;rpi:EDL_Freebase" {tmp_file} > {tmp_file1}'
+        self.exec_sh('kgtk filter -p ";;uiuc:EDL_Freebase" {tmp_file} > {tmp_file1}'
                 .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
         self.exec_sh('kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 -i {tmp_file} | kgtk filter -p ";aida:jsonContent;" > {tmp_file2}'
                 .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)))
@@ -256,7 +256,7 @@ class Importer(object):
         self.logger.info('creating embedding vector')
         self.exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh('kgtk filter -p ";;rpi:entity_representations" {tmp_file} > {tmp_file1}'
+        self.exec_sh('kgtk filter -p ";;uiuc:entity_representations" {tmp_file} > {tmp_file1}'
                 .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
         self.exec_sh('''kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 \
     -i {tmp_file} | kgtk filter -p ';aida:jsonContent;' > {tmp_file2}'''

@@ -190,6 +190,7 @@ class Exporter(object):
                 entity_id = "-".join(entity.split("-")[1:])
                 # a mimic of other objects like `entity`, `relations`
                 assertion_object = "assertion:" + entity_id
+                entity = self.extend_prefix(entity)
                 assertion_info = ENTITY_ASSERTION_TEMPLATE.format(assertion_object,
                                                                   entity,
                                                                   source,

@@ -126,7 +126,6 @@ class Exporter(object):
             # TODO bypass columbia illegal delcaration
             if self.__class__.legal_filter(entity):
                 entity = self.extend_prefix(entity)
-                print(entity)
                 entity_statement = ENTITY_TEMPLATE.format(entity)
                 self.write(entity_statement)
 

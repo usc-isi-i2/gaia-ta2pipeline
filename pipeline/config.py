@@ -36,7 +36,7 @@ def get_config():
             'output_dir': get_env_var('OUTPUT'),
             'run_name': get_env_var('RUN_NAME', optional=True, default='unknown_run_name'),
             'temp_dir': get_env_var('TEMP', optional=True, default='/tmp'),
-            'namespace_file': os.path.join(get_env_var('RES'), 'aida-namespace.tsv'),
+            'namespace_file': os.path.join(get_env_var('RES'), 'aida-namespaces.tsv'),
             'logging_level': logging.INFO,
             'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2'))
         }

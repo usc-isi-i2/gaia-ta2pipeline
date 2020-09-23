@@ -1,4 +1,5 @@
-kgtk==0.3.2
+kgtk==0.4.0
 rltk==2.0.0a15
-tables
 pyrallel.lib==0.0.8
+pandas==1.0.2
+tables

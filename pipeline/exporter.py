@@ -35,6 +35,8 @@ ENTITY_ASSERTION_TEMPLATE = """{}  a        rdf:Statement ;
                                                      ] ;
                             aida:source              "{}" ;
                             aida:sourceDocument      "{}" ;
+                            aida:startOffset         "0"^^xsd:int ;
+                            aida:endOffsetInclusive  "0"^^xsd:int ;
                             aida:system              gaia:TA2
                           ] ;
         aida:system       gaia:TA2 .\n"""

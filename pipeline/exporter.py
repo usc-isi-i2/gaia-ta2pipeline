@@ -101,11 +101,11 @@ class Exporter(object):
 
     def run(self):
         self.declare_prefix()
-        self.declare_entity()
+        # self.declare_entity()
         self.declare_cluster()
         self.declare_system()
         self.declare_entity_cluster_membership()
-        self.declare_entity_assertion()
+        # self.declare_entity_assertion()
 
     def __dell__(self):
         self.fp.close()
@@ -124,12 +124,12 @@ class Exporter(object):
     def declare_entity(self):
         self.entities = self.df["e"].to_list()
         self.entity_sources = self.df["source"].to_list()
-        for entity in self.entities:
-            # TODO bypass columbia illegal delcaration
-            if self.__class__.legal_filter(entity):
-                entity = self.extend_prefix(entity)
-                entity_statement = ENTITY_TEMPLATE.format(entity)
-                self.write(entity_statement)
+        # for entity in self.entities:
+        #     # TODO bypass columbia illegal delcaration
+        #     if self.__class__.legal_filter(entity):
+        #         entity = self.extend_prefix(entity)
+        #         entity_statement = ENTITY_TEMPLATE.format(entity)
+        #         self.write(entity_statement)
 
     @classmethod
     def legal_filter(cls, *strings):
@@ -157,9 +157,9 @@ class Exporter(object):
 
     def declare_system(self):
         # manual
-        ta1 = "gaia:TA1  a  aida:System .\n"
+        # ta1 = "gaia:TA1  a  aida:System .\n"
         ta2 = "gaia:TA2  a  aida:System .\n"
-        self.write(ta1)
+        # self.write(ta1)
         self.write(ta2)
 
     def declare_entity_cluster_membership(self):

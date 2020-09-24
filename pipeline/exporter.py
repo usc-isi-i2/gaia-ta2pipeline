@@ -188,11 +188,11 @@ class Exporter(object):
         # use entity id for assertion id
         for entity, source in zip(self.entities, self.entity_sources):
             if self.__class__.legal_filter(entity, source):
-                entity_id = "-".join(entity.split("-")[1:])
                 # a mimic of other objects like `entity`, `relations`
-                assertion_object = "assertion:" + entity_id
+                assertion = "assertion:" + ':'.join(entity.split(':')[1:])
+                assertion = self.extend_prefix(assertion)
                 entity = self.extend_prefix(entity)
-                assertion_info = ENTITY_ASSERTION_TEMPLATE.format(assertion_object,
+                assertion_info = ENTITY_ASSERTION_TEMPLATE.format(assertion,
                                                                   entity,
                                                                   source,
                                                                   source)

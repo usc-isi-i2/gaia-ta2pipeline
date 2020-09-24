@@ -323,19 +323,22 @@ def process():
 
     for _, e in df_entity['e'].items():
         if e not in clustered_entity_ids:
-            added = False
             r = ds.get_record(e)
             r_type = normalize_type(r.type)
+            local_best = [None, 0]  # first item: cluster id, second item: score
             for c in final_clusters:
                 sim = c.similarity(r)
                 if r_type != c.type:
                     continue
                 if sim >= MIN_SIM:
-                    c.add(r, contribute=False)
-                    added = True
+                    if sim > local_best[1]:
+                        local_best = [c, sim]
 
-            # still singleton, construct singleton cluster
-            if not added:
+            c = local_best[0]
+            if c is not None:
+                c.add(r, contribute=False)
+            else:
+                # still singleton, construct singleton cluster
                 c = Cluster(ds)
                 c.type = r_type
                 c.add(r)
@@ -355,6 +358,9 @@ def process():
     for c in final_clusters:
         for r in c.all_records:
             entity_to_cluster[r].append(c)
+    for e, c in entity_to_cluster.items():
+        if len(c) > 1:
+            logger.error('Entity in multiple clusters detected, entity id: %s', e)
 
     ### generate cluster properties
     logger.info('generating cluster properties')

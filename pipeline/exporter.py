@@ -167,19 +167,18 @@ class Exporter(object):
         entities = self.df["e"].to_list()
         clusters = self.df["cluster"].to_list()
         for entity, cluster in zip(entities, clusters):
+            entity = self.extend_prefix(entity)
             # TODO handle possilbe types of cluster: string or tuple
             if type(cluster) == tuple:
                 for cluster_ in cluster:
+                    cluster_ = self.extend_prefix(cluster_)
                     if self.__class__.legal_filter(cluster_, entity):
-                        cluster_ = self.extend_prefix(cluster_)
-                        entity = self.extend_prefix(entity)
                         membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
                         self.write(membership_info)
             else:
                 cluster_ = cluster
+                cluster_ = self.extend_prefix(cluster_)
                 if self.__class__.legal_filter(cluster_, entity):
-                    cluster_ = self.extend_prefix(cluster_)
-                    entity = self.extend_prefix(entity)
                     membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
                     self.write(membership_info)
 

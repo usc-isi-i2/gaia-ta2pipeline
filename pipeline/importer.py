@@ -181,11 +181,17 @@ class Importer(object):
                 target_type = []
                 target_name = []
                 for t in targets:
-                    kb_version, target_id = t.split(':')
-                    if kb_version != 'REFKB':  # 'LDC2019E43'
+                    # UIUC: REFKB:3634031
+                    # BBN: REFKB3643031
+                    if t.startswith('REFKB:'):
+                        target_id = t.split(':')[1]
+                    elif t.startswith('REFKB'):
+                        target_id = t[len('REFKB'):]
+                    else:
                         target_type.append(None)
                         target_name.append(None)
                         continue
+
                     data = ldc_kg.get(target_id)
                     if data:
                         target_type.append(data['type'])

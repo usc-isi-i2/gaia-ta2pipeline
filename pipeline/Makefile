@@ -11,7 +11,8 @@ docker-run:
        	-e REPO_KB=/kb \
        	-e RUN_NAME=m36 \
        	-e TEMP=/aida/tmp \
-       	-e RES=/aida/res \
+       	-e NAMESPACE=/aida/res/aida-namespaces.tsv \
+       	-e WD_FB_MAPPING=/aida/res/df_wd_fb.csv \
        	-e NUM_PROC=6 \
        	-v $$(pwd)/../pipeline_test/input:/input:ro \
        	-v $$(pwd)/../pipeline_test/output:/output \

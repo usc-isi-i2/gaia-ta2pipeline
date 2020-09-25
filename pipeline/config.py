@@ -23,20 +23,20 @@ def get_config():
             'wd_to_fb_file': '../pipeline_test/df_wd_fb_20200803.csv',
             'input_dir': '../pipeline_test/input',
             'output_dir': '../pipeline_test/output',
-            'run_name': 'm36',
+            'run_name': 'bbn',
             'temp_dir': '../pipeline_test/temp',
-            'namespace_file': '../pipeline_test/aida-namespaces.tsv',
+            'namespace_file': '../pipeline_test/aida-namespaces-bbn.tsv',
             'logging_level': logging.INFO,
             'num_of_processor': 1
         } if not prod_mode else \
         {  # production
             'ldc_kg_dir': os.path.join(get_env_var('REPO_KB'), 'data'),
-            'wd_to_fb_file': os.path.join(get_env_var('RES'), 'df_wd_fb.csv'),
+            'wd_to_fb_file': os.path.join(get_env_var('WD_FB_MAPPING')),
             'input_dir': get_env_var('INPUT'),
             'output_dir': get_env_var('OUTPUT'),
-            'run_name': get_env_var('RUN_NAME', optional=True, default='unknown_run_name'),
+            'run_name': get_env_var('RUN_NAME'),
             'temp_dir': get_env_var('TEMP', optional=True, default='/tmp'),
-            'namespace_file': os.path.join(get_env_var('RES'), 'aida-namespaces.tsv'),
+            'namespace_file': os.path.join(get_env_var('NAMESPACE')),
             'logging_level': logging.INFO,
             'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2'))
         }

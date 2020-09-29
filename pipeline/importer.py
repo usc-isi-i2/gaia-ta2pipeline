@@ -174,6 +174,10 @@ class Importer(object):
 
         df_target = df_tmp4.groupby('e')[['target', 'score']].apply(merge_targets).reset_index()
         # expand with labels from ldc kg
+        if 'target' not in df_target:
+            df_target['target'] = None
+        if 'target_score' not in df_target:
+            df_target['target_score'] = None
         df_target['target_type'] = None
         df_target['target_name'] = None
         for idx, targets in df_target['target'].iteritems():

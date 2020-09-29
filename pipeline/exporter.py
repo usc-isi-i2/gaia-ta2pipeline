@@ -13,6 +13,11 @@ from config import config, get_logger
 
 logger = get_logger('exporter')
 
+NAMESPACE = {
+    'gaia': 'http://www.isi.edu/gaia/',
+    'xsd': 'http://www.w3.org/2001/XMLSchema#'
+}
+
 ENTITY_TEMPLATE = """{} a       aida:Entity ;
         aida:system  gaia:TA1 .\n"""
 
@@ -90,6 +95,11 @@ class Exporter(object):
         for i in range(namespace_df.shape[0]):
             record = namespace_df.iloc[i]
             name_space[record["node1"]] = record["node2"]
+
+        # additional namespace
+        for k, v in NAMESPACE.items():
+            if k not in name_space:
+                name_space[k] = v
         return name_space
 
     def extend_prefix(self, s):

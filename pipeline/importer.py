@@ -683,7 +683,38 @@ def process():
     logger.info('all tasks are finished')
 
 
+def generate_kb_to_wd_mapping(run_name, outfile):
+    df_entity = pd.DataFrame()
+    for infile in glob.glob(os.path.join(config['temp_dir'], run_name, '*/*.entity.h5')):
+        df_entity = df_entity.append(pd.read_hdf(infile))
+    df_entity = df_entity.reset_index(drop=True)
+
+    mapping = defaultdict(lambda: defaultdict(float))
+    for idx, e in df_entity.iterrows():
+        targets = e['target']
+        target_scores = e['target_score']
+        fbs = e['fbid']
+        fb_scores = e['fbid_score_avg']
+        if pd.notna(targets) and pd.notna(fbs):
+            for i, t in enumerate(targets):
+                t_score = target_scores[i]
+                for j, fb in enumerate(fbs):
+                    fb_score = fb_scores[j]
+                    curr_score = 1.0 * t_score * fb_score
+                    prev_score = mapping[t].get(fb)
+                    if prev_score:
+                        mapping[t][fb] = max(curr_score, prev_score)
+                    else:
+                        mapping[t][fb] = curr_score
+    with open(outfile, 'w') as f:
+        json.dump(mapping, f)
+
+
 if __name__ == '__main__':
     argv = sys.argv
     if argv[1] == 'process':
         process()
+    elif argv[1] == 'kb_to_wd':
+        run_name = argv[2]
+        outfile = argv[3]
+        generate_kb_to_wd_mapping(run_name, outfile)

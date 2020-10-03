@@ -27,7 +27,8 @@ def get_config():
             'temp_dir': '../pipeline_test/temp',
             'namespace_file': '../pipeline_test/aida-namespaces-bbn.tsv',
             'logging_level': logging.INFO,
-            'num_of_processor': 1
+            'num_of_processor': 1,
+            'kb_to_fbid_mapping':  None, #'../pipeline_test/kb_to_wd_mapping.json',
         } if not prod_mode else \
         {  # production
             'ldc_kg_dir': os.path.join(get_env_var('REPO_KB'), 'data'),
@@ -38,7 +39,8 @@ def get_config():
             'temp_dir': get_env_var('TEMP', optional=True, default='/tmp'),
             'namespace_file': os.path.join(get_env_var('NAMESPACE')),
             'logging_level': logging.INFO,
-            'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2'))
+            'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2')),
+            'kb_to_fbid_mapping': get_env_var('KB_FBID_MAPPING', optional=True),
         }
 
 

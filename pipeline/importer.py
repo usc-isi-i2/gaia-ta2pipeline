@@ -14,6 +14,7 @@ from config import config, get_logger
 
 ldc_kg = None
 df_wd_fb = None
+kb_to_fb_mapping = None
 
 
 class Importer(object):
@@ -25,7 +26,7 @@ class Importer(object):
         self.temp_dir = os.path.join(config['temp_dir'], config['run_name'], source)
 
     def run(self):
-        global ldc_kg, df_wd_fb
+        global ldc_kg, df_wd_fb, kb_to_fb_mapping
         os.makedirs(self.temp_dir, exist_ok=True)
 
         try:
@@ -42,7 +43,8 @@ class Importer(object):
             self.convert_ttl_to_nt(self.infile, nt_file)
             self.convert_nt_to_kgtk(nt_file, kgtk_file)
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
-            self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source, ldc_kg, df_wd_fb)
+            self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source,
+                                  ldc_kg, df_wd_fb, kb_to_fb_mapping)
             # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
             # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
             # self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
@@ -126,7 +128,7 @@ class Importer(object):
         self.exec_sh('kgtk unreify-rdf-statements -i {infile} / sort --columns 1,2 >  {outfile}'
                 .format(infile=infile, outfile=outfile))
 
-    def create_entity_df(self, kgtk_file, unreified_kgtk_file, output_file, source, ldc_kg, df_wd_fb):
+    def create_entity_df(self, kgtk_file, unreified_kgtk_file, output_file, source, ldc_kg, df_wd_fb, kb_to_fb_mapping):
         self.logger.info('create entity df for ' + source)
 
         ### id
@@ -174,6 +176,14 @@ class Importer(object):
 
         df_target = df_tmp4.groupby('e')[['target', 'score']].apply(merge_targets).reset_index()
         # expand with labels from ldc kg
+        def extract_target_id(s):
+            target_id = None
+            if t.startswith('REFKB:'):
+                target_id = t.split(':')[1]
+            elif t.startswith('REFKB'):
+                target_id = t[len('REFKB'):]
+            return target_id
+
         if 'target' not in df_target:
             df_target['target'] = None
         if 'target_score' not in df_target:
@@ -187,11 +197,8 @@ class Importer(object):
                 for t in targets:
                     # UIUC: REFKB:3634031
                     # BBN: REFKB3643031
-                    if t.startswith('REFKB:'):
-                        target_id = t.split(':')[1]
-                    elif t.startswith('REFKB'):
-                        target_id = t[len('REFKB'):]
-                    else:
+                    target_id = extract_target_id(t)
+                    if not target_id:
                         target_type.append(None)
                         target_name.append(None)
                         continue
@@ -263,6 +270,25 @@ class Importer(object):
 
         if len(df_fb) > 0:
             df_fb = df_fb.groupby('e')[['fbid', 'fbid_score_avg', 'fbid_score_max']].apply(merge_fb).reset_index()
+
+        ### augment fbid
+        if kb_to_fb_mapping:
+            for idx, target in df_target.iterrows():
+                fbid = []
+                fbid_score_avg = []
+                fbid_score_max = []
+                for t in target['target']:
+                    key = 'REFKB:' + extract_target_id(t)
+                    if key in kb_to_fb_mapping:
+                        fbs = kb_to_fb_mapping[key].keys()
+                        for fb in fbs:
+                            fbid.append(fb)
+                            fbid_score_avg.append(kb_to_fb_mapping[key][fb])
+                            fbid_score_max.append(kb_to_fb_mapping[key][fb])
+                df_fb = df_fb.append(pd.Series({'e': target['e'], 'fbid': tuple(fbid),
+                    'fbid_score_avg': tuple(fbid_score_avg), 'fbid_score_max': tuple(fbid_score_max)})
+                    ,ignore_index=True)
+            df_fb.reset_index(drop=True)
 
         ### embedding vector
         self.logger.info('creating embedding vector')
@@ -649,6 +675,14 @@ def load_ldc_kb():
     return kb_names
 
 
+def load_kb_to_fb_mapping():
+    mapping = None
+    if config['kb_to_fbid_mapping']:
+        with open(config['kb_to_fbid_mapping'], 'r') as f:
+            mapping = json.load(f)
+    return mapping
+
+
 def load_wd_to_fb_df():
     return convert_nan_to_none(pd.read_csv(config['wd_to_fb_file']))
 
@@ -659,11 +693,12 @@ def worker(source):
 
 
 def process():
-    global ldc_kg, df_wd_fb
+    global ldc_kg, df_wd_fb, kb_to_fb_mapping
     logger = get_logger('importer-main')
     logger.info('loading resource')
     ldc_kg = load_ldc_kb()
     df_wd_fb = load_wd_to_fb_df()
+    kb_to_fb_mapping = load_kb_to_fb_mapping()
 
     logger.info('starting multiprocessing mode')
     pp = pyrallel.ParallelProcessor(

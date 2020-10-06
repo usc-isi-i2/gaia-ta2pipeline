@@ -108,7 +108,7 @@ class Importer(object):
 
     def convert_ttl_to_nt(self, ttl_file, nt_file):
         self.logger.info('converting ttl to nt')
-        self.exec_sh('graphy read -c ttl / write -c nt < {ttl} > {nt}'
+        self.exec_sh('apache-jena-3.16.0/bin/riot --syntax=ttl --output=nt < {ttl} > {nt}'
                      .format(ttl=ttl_file, nt=nt_file))
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):

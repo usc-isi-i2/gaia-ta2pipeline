@@ -372,21 +372,36 @@ def process():
     df_entity_cluster = df_entity_ori.copy()
     df_entity_cluster['cluster'] = None
     df_entity_cluster['synthetic'] = False
+
+    logger.info('updating cluster info for each entity')
     for idx, e in df_entity_cluster['e'].items():
         clusters = tuple(set([c.full_id for c in entity_to_cluster[e]]))
         df_entity_cluster.at[idx, 'cluster'] = clusters
 
-    df_prototypes = pd.DataFrame(columns=df_entity_cluster.columns)
+    logger.info('creating prototypes')
+    proto_to_cluster_mapping = {}
     for c in final_clusters:
-        p = df_entity_ori[df_entity_ori['e'] == c.feature_entity_id].iloc[0]
-        p['synthetic'] = True
-        p['cluster'] = tuple([c.full_id])
-        p['e'] = c.prototype
-        df_prototypes = df_prototypes.append(p)
+        proto_to_cluster_mapping[c.feature_entity_id] = c
+    proto_dict = []
+    for idx, row in df_entity_cluster.iterrows():
+        eid = row['e']
+        if eid not in proto_to_cluster_mapping:
+            # not a prototype
+            continue
+        c = proto_to_cluster_mapping[eid]
+        # p = df_entity_ori[df_entity_ori['e'] == c.feature_entity_id].iloc[0]
+        row = row.to_dict()
+        row['synthetic'] = True
+        row['cluster'] = tuple([c.full_id])
+        row['e'] = c.prototype
+        proto_dict.append(row)
+    df_prototypes = pd.DataFrame.from_dict(proto_dict)
 
+    logger.info('appending dataframes')
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
     df_complete_entity_clusters.reset_index(drop=True)
 
+    logger.info('writing to disk')
     output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

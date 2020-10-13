@@ -19,15 +19,31 @@ make docker-run
 
 All configurations can be found in Makefile. Please make changes to them accordingly.
 
+TA2 has three steps: import, clustering, export. 
+
+- To run them all, do `PROD=True python runner.py`. 
+- To run importer only, do `PROD=True python importer.py process`.
+- To run clusterer only, do `PROD=True python clusterer.py process`.
+- To run exporter only, do `PROD=True python exporter.py process`.
+
+For BBN data, please add `-e KB_FBID_MAPPING=/aida/res/kb_to_wd_mapping.json` to enable target id to freebase id mapping while running docker.
+
 
 ## Resource required
 
+All of these are on Goolge shared drives at `GAIA:/gaia-ta2-m36/res` (Please contact me to get access).
+
 - `df_wd_fb.csv`: Wikidata to Freebase mapping.
-- `aida-namespaces.tsv`: Namespace file.
+- `aida-namespaces-*.tsv`: Namespace files.
+- `kb_to_wd_mapping.json`: Target id to freebase id mapping.
 
 
 ## Run validator
 
 ```
-docker run --rm -it -v /tmp/aif_validator:/v -e VALIDATION_HOME=/opt/aif-validator -e VALIDATION_FLAGS=--TA2 -e TARGET_TO_VALIDATE=/v --name aifvalidator nextcenturycorp/aif_validator
+docker run --rm -it \
+       -v /tmp/aif_validator:/v \
+       --entrypoint /opt/aif-validator/java/target/appassembler/bin/validateAIF \
+       nextcenturycorp/aif_validator:latest \
+       -o --ont /opt/aif-validator/java/src/main/resources/com/ncc/aif/ontologies/LDCOntologyM36 -d /v
 ```

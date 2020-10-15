@@ -33,7 +33,7 @@ def flatten(list_, remove_none=True):
 
 
 def top_score_indices(list_, num):
-    return sorted(range(len(list_)), key=lambda i: list_[i])[-num:]
+    return sorted(range(len(list_)), key=lambda i: list_[i], reverse=True)[-num:]
 
 
 @rltk.set_id('e')
@@ -180,7 +180,7 @@ class Cluster(object):
         self.all_records.add(r)
 
     def generate(self):
-        self.feature_entity_id = deepcopy(self.all_records.pop())
+        self.feature_entity_id = deepcopy(self.all_records).pop()
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 

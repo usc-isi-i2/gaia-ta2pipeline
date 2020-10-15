@@ -202,9 +202,21 @@ class Cluster(object):
         self.all_records.add(r)
 
     def generate(self):
-        self.feature_entity_id = deepcopy(self.all_records.pop())
+        self.feature_entity_id = deepcopy(self.all_records).pop()
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
+
+    def debug(self):
+        return {
+            'wd_id': self.wd_id,
+            'kb_id': self.kb_id,
+            'wd_labels': list(self.wd_labels) if self.wd_labels else None,
+            'kb_labels': list(self.kb_labels) if self.kb_labels else None,
+            'name_labels': list(self.name_labels) if self.name_labels else None,
+            'full_id': self.full_id,
+            'prototype': self.prototype,
+            'all_records': list(self.all_records)
+        }
 
 
 def normalize_type(t):
@@ -430,11 +442,15 @@ def process():
     df_complete_entity_clusters.reset_index(drop=True)
 
     logger.info('writing to disk')
-    output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')
+    output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        df_complete_entity_clusters.to_hdf(output_file, 'entity', mode='w', format='fixed')
-        df_complete_entity_clusters.to_csv(output_file + '.csv')
+        df_complete_entity_clusters.to_hdf(output_file + '.h5', 'entity', mode='w', format='fixed')
+        df_complete_entity_clusters.to_csv(output_file + '.h5.csv')
+    with open(output_file + '.cluster.jl', 'w') as f:
+        for c in final_clusters:
+            f.write(json.dumps(c.debug()) + '\n')
+
 
 
 if __name__ == '__main__':

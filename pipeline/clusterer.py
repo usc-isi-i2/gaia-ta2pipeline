@@ -224,6 +224,28 @@ class Cluster(object):
                 score = min(score, round(1 * freq.get(n) / total_freq, 2))
             self.member_confidence[r] = score
 
+    def elect_featured_entity(self):
+        featured_entity_id, max_confidence = max(self.member_confidence.items(), key=lambda x: x[1])
+
+        # for fake (singleton) cluster
+        if not self.ds:
+            return featured_entity_id
+
+        # candidate entities may all have the same confidence value, need to select the one which:
+        # 1. has max confidence
+        # 2. has as many label as possible
+        # 3. would be better to have target id
+        name_size = len(self.ds.get_record(featured_entity_id).name)
+        for cand_id in [m[0] for m in self.member_confidence.items() if m[1] == max_confidence]:
+            r = self.ds.get_record(cand_id)
+            if self.wd_id and r.selected_target is None:  # it should have target id but no
+                continue
+            if len(r.name) > name_size:
+                featured_entity_id = cand_id
+                name_size = len(r.name)
+
+        return featured_entity_id
+
     @property
     def attractive_labels(self):
         labels = set([])
@@ -237,8 +259,7 @@ class Cluster(object):
 
     def generate(self):
         self.compute_confidence()
-        # self.feature_entity_id = deepcopy(self.all_records).pop()
-        self.feature_entity_id = max(self.member_confidence.items(), key=lambda x: x[1])[0]  # the one with max confidence
+        self.feature_entity_id = self.elect_featured_entity()
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 

@@ -50,7 +50,7 @@ MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
   aida:cluster        {} ;
   aida:clusterMember  {} ;
   aida:confidence     [ a                     aida:Confidence ;
-                        aida:confidenceValue  "1.0"^^xsd:double ;
+                        aida:confidenceValue  "{}"^^xsd:double ;
                         aida:system           gaia:TA2
                       ] ;
   aida:system         gaia:TA2
@@ -62,7 +62,7 @@ COLUMNS = ['e', 'name', 'type', 'target', 'target_score', 'target_type',
            'wikidata_description_en', 'wikidata_description_ru',
            'wikidata_description_uk', 'wikidata_alias_en', 'wikidata_alias_ru',
            'wikidata_alias_uk', 'infojust_confidence', 'informative_justification',
-           'just_confidence', 'justified_by', 'source', 'cluster', 'synthetic']
+           'just_confidence', 'justified_by', 'source', 'cluster', 'synthetic', 'cluster_member_confidence']
 
 ESEENTIAL_COLUMNS = ["e",
                      "cluster",
@@ -70,7 +70,8 @@ ESEENTIAL_COLUMNS = ["e",
                      "informative_justification",
                      "just_confidence",
                      "justified_by",
-                     "source"]
+                     "source",
+                     "cluster_member_confidence"]
 
 
 class Exporter(object):
@@ -178,20 +179,21 @@ class Exporter(object):
         '''
         entities = self.df["e"].to_list()
         clusters = self.df["cluster"].to_list()
-        for entity, cluster in zip(entities, clusters):
+        confidences = self.df["cluster_member_confidence"].to_list()
+        for entity, cluster, confidence in zip(entities, clusters, confidences):
             entity = self.extend_prefix(entity)
             # TODO handle possilbe types of cluster: string or tuple
             if type(cluster) == tuple:
-                for cluster_ in cluster:
+                for idx, cluster_ in enumerate(cluster):
                     cluster_ = self.extend_prefix(cluster_)
                     if self.__class__.legal_filter(cluster_, entity):
-                        membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
+                        membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity, confidence[idx])
                         self.write(membership_info)
             else:
                 cluster_ = cluster
                 cluster_ = self.extend_prefix(cluster_)
                 if self.__class__.legal_filter(cluster_, entity):
-                    membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity)
+                    membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity, confidence)
                     self.write(membership_info)
 
     def declare_entity_assertion(self):

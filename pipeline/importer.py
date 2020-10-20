@@ -57,6 +57,15 @@ class Importer(object):
         # os.remove(unreified_kgtk_file)
         self.clean_temp_files()
 
+    def create_namespace_file(self, outfile):
+        os.makedirs(self.temp_dir, exist_ok=True)
+        nt_file = os.path.join(self.temp_dir, '{}.nt'.format(self.source))
+        kgtk_file = os.path.join(self.temp_dir, '{}.tsv'.format(self.source))
+        self.convert_ttl_to_nt(self.infile, nt_file)
+        self.exec_sh('''kgtk import-ntriples -i {nt_file} > {kgtk_file}'''
+                     .format(nt_file=nt_file, kgtk_file=kgtk_file))
+        shutil.copy(kgtk_file, outfile)
+
     def exec_sh(self, s):
         self.logger.debug('exec_sh:', s)
         process = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -278,7 +287,10 @@ class Importer(object):
                 fbid_score_avg = []
                 fbid_score_max = []
                 for t in target['target']:
-                    key = 'REFKB:' + extract_target_id(t)
+                    target_id = extract_target_id(t)
+                    if not target_id:
+                        continue
+                    key = 'REFKB:' + target_id
                     if key in kb_to_fb_mapping:
                         fbs = kb_to_fb_mapping[key].keys()
                         for fb in fbs:
@@ -752,4 +764,18 @@ if __name__ == '__main__':
     elif argv[1] == 'kb_to_wd':
         run_name = argv[2]
         outfile = argv[3]
-        generate_kb_to_wd_mapping(run_name, outfile)
+        generate_kb_to_wd_mapping(outfile)
+    elif argv[1] == 'create_namespace':
+        outfile = argv[2]
+
+        # pick the file with biggest size
+        source = None
+        source_size = 0
+        for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl')):
+            if not source:
+                source = infile
+            file_size = os.stat(infile).st_size
+            if file_size > source_size:
+                source = os.path.basename(infile).split('.')[0]
+        im = Importer(source=source)
+        im.create_namespace_file(outfile)

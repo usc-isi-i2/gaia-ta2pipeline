@@ -222,6 +222,7 @@ class Cluster(object):
                 if n in attractive_labels:  # only on the label not in attractive labels
                     continue
                 score = min(score, round(1 * freq.get(n) / total_freq, 2))
+            score = max(score, 0.01)  # lower bound, this mitigates the effect that round method makes score to be 0.0.
             self.member_confidence[r] = score
 
     def elect_featured_entity(self):

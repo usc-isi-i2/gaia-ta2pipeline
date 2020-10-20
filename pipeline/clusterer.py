@@ -188,14 +188,7 @@ class Cluster(object):
         return ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(length)])
 
     def similarity(self, r):
-        score = 0
-        if self.kb_id:
-            score += len(set(r.name) & self.kb_labels)
-        if self.wd_id:
-            score += len(set(r.name) & self.wd_labels)
-        if self.name_labels:
-            score += len(set(r.name) & self.name_labels)
-        return score
+        return len(self.attractive_labels & set(r.name))
 
     def add(self, r):
         if isinstance(r, rltk.Record):
@@ -222,11 +215,25 @@ class Cluster(object):
         total_freq = sum(freq.values())
 
         # confidence is based on the freq of the worst label
+        attractive_labels = self.attractive_labels
         for r in self.all_records:
             score = 1.0
             for n in self.ds.get_record(r).name:
+                if n in attractive_labels:  # only on the label not in attractive labels
+                    continue
                 score = min(score, round(1 * freq.get(n) / total_freq, 2))
             self.member_confidence[r] = score
+
+    @property
+    def attractive_labels(self):
+        labels = set([])
+        if self.kb_labels:
+            labels |= self.kb_labels
+        if self.wd_labels:
+            labels |= self.wd_labels
+        if self.name_labels:
+            labels |= self.name_labels
+        return labels
 
     def generate(self):
         self.compute_confidence()

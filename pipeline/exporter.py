@@ -66,10 +66,10 @@ COLUMNS = ['e', 'name', 'type', 'target', 'target_score', 'target_type',
 
 ESEENTIAL_COLUMNS = ["e",
                      "cluster",
-                     "infojust_confidence",
-                     "informative_justification",
-                     "just_confidence",
-                     "justified_by",
+                     # "infojust_confidence",
+                     # "informative_justification",
+                     # "just_confidence",
+                     # "justified_by",
                      "source",
                      "cluster_member_confidence"]
 

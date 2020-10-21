@@ -26,16 +26,25 @@ TA2 has three steps: import, clustering, export.
 - To run clusterer only, do `PROD=True python clusterer.py process`.
 - To run exporter only, do `PROD=True python exporter.py process`.
 
-For BBN data, please add `-e KB_FBID_MAPPING=/aida/res/kb_to_wd_mapping.json` to enable target id to freebase id mapping while running docker.
+Environment variables:
 
+- `INPUT`: Input directory.
+- `OUTPUT`: Output directory.
+- `TEMP` (optional): Temp directory.
+- `REPO_KB`: The path of LDC REFKB.
+- `RUN_NAME`: The name of the sub directory to run in `INPUT`. TA1 ttl files should be placed here.
+- `NUM_PROC` : The number of processors to use.
+- `NAMESPACE`: The namespace file. Please use different namespace files for different TA1 teams.
+- `WD_FB_MAPPING`: Wikidata to Freebase mapping.
+- `KB_FBID_MAPPING` (optional): The path of the REFKB to Wikidata mapping file. This needs to be set for non-UIUC TA1 data.
 
 ## Resource required
 
 All of these are on Goolge shared drives at `GAIA:/gaia-ta2-m36/res` (Please contact me to get access).
 
 - `df_wd_fb.csv`: Wikidata to Freebase mapping.
-- `aida-namespaces-*.tsv`: Namespace files.
-- `kb_to_wd_mapping.json`: Target id to freebase id mapping.
+- `aida-namespaces-{ta1 team}.tsv`: Namespace files.
+- `kb_to_wd_mapping.json`: REFKB id to freebase id mapping.
 
 
 ## Run validator

@@ -185,7 +185,7 @@ class Importer(object):
 
         df_target = df_tmp4.groupby('e')[['target', 'score']].apply(merge_targets).reset_index()
         # expand with labels from ldc kg
-        def extract_target_id(s):
+        def extract_target_id(t):
             target_id = None
             if t.startswith('REFKB:'):
                 target_id = t.split(':')[1]
@@ -193,10 +193,31 @@ class Importer(object):
                 target_id = t[len('REFKB'):]
             return target_id
 
+        def filter_target(df):
+            d = df[['e', 'target', 'target_score']].to_dict()
+            new_d = {'e': {}, 'target': {}, 'target_score': {}}
+            for k, v in d['target'].items():
+                if v is None:
+                    continue
+                new_target = []
+                new_target_score = []
+                for idx_, tt in enumerate(v):
+                    if extract_target_id(tt) is None:  # not valid ID
+                        continue
+                    new_target.append(tt)
+                    new_target_score.append(d['target_score'][k][idx_])
+                if len(new_target) > 0:
+                    new_d['e'][k] = d['e'][k]
+                    new_d['target'][k] = tuple(new_target)
+                    new_d['target_score'][k] = tuple(new_target_score)
+            return pd.DataFrame(new_d)
+
         if 'target' not in df_target:
             df_target['target'] = None
         if 'target_score' not in df_target:
             df_target['target_score'] = None
+        df_target = filter_target(df_target)
+
         df_target['target_type'] = None
         df_target['target_name'] = None
         for idx, targets in df_target['target'].iteritems():

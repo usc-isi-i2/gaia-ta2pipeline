@@ -293,6 +293,7 @@ def process():
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
         df_entity = df_entity.append(pd.read_hdf(infile))
+    df_entity = df_entity.drop_duplicates(subset=['e'], keep='last')  # cmu data has cross document entities, only keep one
     df_entity = df_entity.reset_index(drop=True)
     logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)

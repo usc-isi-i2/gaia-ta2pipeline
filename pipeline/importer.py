@@ -10,6 +10,7 @@ import warnings
 import pandas as pd
 import pyrallel
 from config import config, get_logger
+from common import exec_sh
 
 
 ldc_kg = None
@@ -62,17 +63,9 @@ class Importer(object):
         nt_file = os.path.join(self.temp_dir, '{}.nt'.format(self.source))
         kgtk_file = os.path.join(self.temp_dir, '{}.tsv'.format(self.source))
         self.convert_ttl_to_nt(self.infile, nt_file)
-        self.exec_sh('''kgtk import-ntriples -i {nt_file} > {kgtk_file}'''
-                     .format(nt_file=nt_file, kgtk_file=kgtk_file))
+        exec_sh('''kgtk import-ntriples -i {nt_file} > {kgtk_file}'''
+                     .format(nt_file=nt_file, kgtk_file=kgtk_file), self.logger)
         shutil.copy(kgtk_file, outfile)
-
-    def exec_sh(self, s):
-        self.logger.debug('exec_sh:', s)
-        process = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if stderr != b'':
-            self.logger.error('exec_sh: %s . stderr: %s', s, stderr)
-        return stdout, stderr
 
     def tmp_file_path(self, x=None):
         suffix = '' if not x else '.{}'.format(x)
@@ -89,8 +82,8 @@ class Importer(object):
 
         # first predicate
         tmp_str = ';{};'.format(all_p[0])
-        self.exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
-                .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
+                .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
         pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
 
         # rest of the predicate
@@ -98,8 +91,8 @@ class Importer(object):
         for idx in range(1, len(all_p)):
             p = all_p[idx]
             tmp_str = ';{};'.format(p)
-            self.exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
-                    .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()))
+            exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
+                    .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
             pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
 
             # merge
@@ -117,12 +110,12 @@ class Importer(object):
 
     def convert_ttl_to_nt(self, ttl_file, nt_file):
         self.logger.info('converting ttl to nt')
-        self.exec_sh('apache-jena-3.16.0/bin/riot --syntax=ttl --output=nt < {ttl} > {nt}'
-                     .format(ttl=ttl_file, nt=nt_file))
+        exec_sh('apache-jena-3.16.0/bin/riot --syntax=ttl --output=nt < {ttl} > {nt}'
+                     .format(ttl=ttl_file, nt=nt_file), self.logger)
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')
-        self.exec_sh('''kgtk import-ntriples \
+        exec_sh('''kgtk import-ntriples \
       --namespace-file {ns_file} \
       --namespace-id-use-uuid False \
       --newnode-use-uuid False \
@@ -130,27 +123,27 @@ class Importer(object):
       --local-namespace-prefix {source} \
       --local-namespace-use-uuid False \
       -i {nt_file} > {kgtk_file}'''
-        .format(ns_file=config['namespace_file'], source=self.source, nt_file=nt_file, kgtk_file=kgtk_file))
+        .format(ns_file=config['namespace_file'], source=self.source, nt_file=nt_file, kgtk_file=kgtk_file), self.logger)
 
     def unreify_kgtk(self, infile, outfile):
         self.logger.info('unreify kgtk')
-        self.exec_sh('kgtk unreify-rdf-statements -i {infile} / sort --columns 1,2 >  {outfile}'
-                .format(infile=infile, outfile=outfile))
+        exec_sh('kgtk unreify-rdf-statements -i {infile} / sort --columns 1,2 >  {outfile}'
+                .format(infile=infile, outfile=outfile), self.logger)
 
     def create_entity_df(self, kgtk_file, unreified_kgtk_file, output_file, source, ldc_kg, df_wd_fb, kb_to_fb_mapping):
         self.logger.info('create entity df for ' + source)
 
         ### id
         self.logger.info('creating id')
-        self.exec_sh('kgtk filter -p ";rdf:type;aida:Entity" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;aida:Entity" {kgtk_file} > {tmp_file}'
+                .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_entity = pd.read_csv(self.tmp_file_path(), delimiter='\t')
         df_entity = pd.DataFrame({'e': df_entity['node1']})
 
         ### name
         self.logger.info('creating name')
-        self.exec_sh('kgtk filter -p ";aida:hasName,aida:textValue;" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";aida:hasName,aida:textValue;" {kgtk_file} > {tmp_file}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label']).rename(
             columns={'node1': 'e', 'node2': 'name'})
 
@@ -246,16 +239,16 @@ class Importer(object):
 
         ### freebase id
         self.logger.info('creating freebase')
-        self.exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh('kgtk filter -p ";;uiuc:EDL_Freebase" {tmp_file} > {tmp_file1}'
-                .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
-        self.exec_sh('kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 -i {tmp_file} | kgtk filter -p ";aida:jsonContent;" > {tmp_file2}'
-                .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)))
-        self.exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)))
-        self.exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
-                .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)))
+        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+        exec_sh('kgtk filter -p ";;uiuc:EDL_Freebase" {tmp_file} > {tmp_file1}'
+                .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
+        exec_sh('kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 -i {tmp_file} | kgtk filter -p ";aida:jsonContent;" > {tmp_file2}'
+                .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)), self.logger)
+        exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
+        exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
+                .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(3), delimiter='\t')
         df_tmp2 = pd.read_csv(self.tmp_file_path(2), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
         df_fb = pd.merge(df_tmp1, df_tmp2, left_on='node2', right_on='node1')[['node1_x', 'node2_y']].rename(
@@ -325,17 +318,17 @@ class Importer(object):
 
         ### embedding vector
         self.logger.info('creating embedding vector')
-        self.exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh('kgtk filter -p ";;uiuc:entity_representations" {tmp_file} > {tmp_file1}'
-                .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
-        self.exec_sh('''kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 \
+        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
+                .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+        exec_sh('kgtk filter -p ";;uiuc:entity_representations" {tmp_file} > {tmp_file1}'
+                .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
+        exec_sh('''kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 \
     -i {tmp_file} | kgtk filter -p ';aida:jsonContent;' > {tmp_file2}'''
-                .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)))
-        self.exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)))
-        self.exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
-                .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)))
+                .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)), self.logger)
+        exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
+        exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
+                .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(3), delimiter='\t')
         df_tmp2 = pd.read_csv(self.tmp_file_path(2), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
         df_vector = pd.merge(df_tmp1, df_tmp2, left_on='node2', right_on='node1')[['node1_x', 'node2_y']].rename(
@@ -344,8 +337,8 @@ class Importer(object):
 
         ### type
         self.logger.info('creating type')
-        self.exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Entity" > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Entity" > {tmp_file}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_type = pd.merge(df_entity, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
 
@@ -486,22 +479,22 @@ class Importer(object):
 
         ### id
         self.logger.info('creating id')
-        self.exec_sh('kgtk filter -p ";rdf:type;aida:Event" {kgtk_file} > {tmp_file}'
-                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;aida:Event" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label'])\
             .rename(columns={'node1': 'e'})
 
         ### type
         self.logger.info('creating type')
-        self.exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Event" > {tmp_file}'
-                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Event" > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_event_type = pd.merge(df_event, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
 
         ### name
         self.logger.info('creating name')
-        self.exec_sh('kgtk filter -p ";skos:prefLabel;" {kgtk_file} > {tmp_file}'
-                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";skos:prefLabel;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label'])\
             .rename(columns={'node1': 'e', 'node2': 'name'})
 
@@ -548,10 +541,10 @@ class Importer(object):
 
     def create_event_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
         self.logger.info('creating event role df for ' + source)
-        self.exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
-                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh("awk -F'\t' '$1 ~ /^event:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} > {tmp_file1}"
-                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
+        exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+        exec_sh("awk -F'\t' '$1 ~ /^event:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} > {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_event_role = pd.DataFrame(columns=['event', 'role', 'entity'])
         try:
             df_event_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t').rename(
@@ -572,15 +565,15 @@ class Importer(object):
 
         ### id
         self.logger.info('creating id')
-        self.exec_sh('kgtk filter -p ";rdf:type;aida:Relation" {kgtk_file} > {tmp_file}'
-                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;aida:Relation" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_relation = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label']).rename(
             columns={'node1': 'e'})
 
         ### type
         self.logger.info('creating type')
-        self.exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Relation" > {tmp_file}'
-                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
+        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Relation" > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_relation_type = pd.merge(df_relation, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
 
@@ -627,13 +620,13 @@ class Importer(object):
 
     def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
         self.logger.info('creating relation role df for ' + source)
-        self.exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
-                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()))
-        self.exec_sh('echo -e "relation\trole\tentity" > {tmp_file1}'.format(tmp_file1=self.tmp_file_path(1)))
-        self.exec_sh("awk -F'\t' '$1 ~ /^relation:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
-                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
-        self.exec_sh("awk -F'\t' '$1 ~ /^columbia:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
-                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)))
+        exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+        exec_sh('echo -e "relation\trole\tentity" > {tmp_file1}'.format(tmp_file1=self.tmp_file_path(1)), self.logger)
+        exec_sh("awk -F'\t' '$1 ~ /^relation:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
+        exec_sh("awk -F'\t' '$1 ~ /^columbia:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
+                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_relation_role = pd.DataFrame(columns=['relation', 'role', 'entity'])
         try:
             df_relation_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t', index_col=False)

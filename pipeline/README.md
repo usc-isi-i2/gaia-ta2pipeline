@@ -11,21 +11,6 @@ Docker build:
 make docker-build
 ```
 
-Docker run:
-
-```
-make docker-run
-```
-
-All configurations can be found in Makefile. Please make changes to them accordingly.
-
-TA2 has three steps: import, clustering, export. 
-
-- To run them all, do `PROD=True python runner.py`. 
-- To run importer only, do `PROD=True python importer.py process`.
-- To run clusterer only, do `PROD=True python clusterer.py process`.
-- To run exporter only, do `PROD=True python exporter.py process`.
-
 Environment variables:
 
 - `INPUT`: Input directory.
@@ -37,6 +22,22 @@ Environment variables:
 - `NAMESPACE`: The namespace file. Please use different namespace files for different TA1 teams.
 - `WD_FB_MAPPING`: Wikidata to Freebase mapping.
 - `KB_FBID_MAPPING` (optional): The path of the REFKB to Wikidata mapping file. This needs to be set for non-UIUC TA1 data.
+
+Docker run:
+
+```
+make docker-run-{ta1 team}
+```
+
+All configurations can be found in Makefile. *Please make changes to them accordingly*.
+
+TA2 has three steps: import, clustering, export. 
+If you wish to run them step-by-step, please add `--entrypoint /bin/bash` while running the container.
+
+- To run them all, do `PROD=True python runner.py`. 
+- To run importer only, do `PROD=True python importer.py process`.
+- To run clusterer only, do `PROD=True python clusterer.py process`.
+- To run exporter only, do `PROD=True python exporter.py process`.
 
 ## Resource required
 

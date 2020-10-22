@@ -5,6 +5,7 @@ import sys
 import re
 from collections import defaultdict
 from config import config, get_logger
+from common import exec_sh
 
 
 # run validator
@@ -223,6 +224,15 @@ def process():
         exporter = Exporter(infile, outfile)
         exporter.run()
 
+    # merge with ta1 output
+    input_dir = os.path.join(config['input_dir'], config['run_name'])
+    output_dir = os.path.join(config['output_dir'], config['run_name'])
+    exec_sh('cat {input_dir}/*.ttl > {output_dir}/ta1.ttl'
+            .format(input_dir=input_dir, output_dir=output_dir), logger)
+    exec_sh('cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl'
+            .format(input_dir=input_dir, output_dir=output_dir), logger)
+    exec_sh('rm {output_dir}/ta1.ttl'
+            .format(output_dir=output_dir), logger)
 
     # # assign bnode globally unique id
     # counter = [0]

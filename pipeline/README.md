@@ -39,8 +39,6 @@ If you wish to run them step-by-step, please add `--entrypoint /bin/bash` while 
 - To run clusterer only, do `PROD=True python clusterer.py process`.
 - To run exporter only, do `PROD=True python exporter.py process`.
 
-Moreover, mount current repository to `/aida/ta2-pipeline` to enable 
-
 ## Resource required
 
 All of these are on Goolge shared drives at `GAIA:/gaia-ta2-m36/res` (Please contact me to get access).

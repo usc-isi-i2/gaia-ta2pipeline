@@ -231,7 +231,7 @@ def process():
             .format(input_dir=input_dir, output_dir=output_dir), logger)
     exec_sh('cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl'
             .format(input_dir=input_dir, output_dir=output_dir), logger)
-    exec_sh('rm {output_dir}/ta1.ttl'
+    exec_sh('rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl'
             .format(output_dir=output_dir), logger)
 
     # # assign bnode globally unique id

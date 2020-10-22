@@ -13,13 +13,12 @@ docker-run-uiuc:
 		-e TEMP=/aida/tmp \
 		-e NAMESPACE=/aida/res/aida-namespaces-uiuc.tsv \
 		-e WD_FB_MAPPING=/aida/res/df_wd_fb.csv \
-		-e NUM_PROC=6 \
+		-e NUM_PROC=30 \
 		-v $$(pwd)/../pipeline_test/input:/input:ro \
 		-v $$(pwd)/../pipeline_test/output:/output \
 		-v $$(pwd)/../pipeline_test/LDC2020E27:/kb \
 		-v $$(pwd)/../pipeline_test/temp:/aida/tmp \
 		-v $$(pwd)/../pipeline_test/res:/aida/res \
-		-v $$(pwd):/aida/ta2-pipeline \
 		gaiaaida/ta2
 
 docker-run-bbn:
@@ -38,7 +37,6 @@ docker-run-bbn:
 		-v $$(pwd)/../../pipeline_test/LDC2020E27:/kb \
 		-v $$(pwd)/../../pipeline_test/temp:/aida/tmp \
 		-v $$(pwd)/../../pipeline_test/res:/aida/res \
-		-v $$(pwd):/aida/ta2-pipeline \
 		gaiaaida/ta2
 
 docker-run-cmu:
@@ -57,5 +55,22 @@ docker-run-cmu:
 		-v $$(pwd)/../../pipeline_test/LDC2020E27:/kb \
 		-v $$(pwd)/../../pipeline_test/temp:/aida/tmp \
 		-v $$(pwd)/../../pipeline_test/res:/aida/res \
-		-v $$(pwd):/aida/ta2-pipeline \
 		gaiaaida/ta2
+
+docker-run-debug:
+	docker run --rm -it \
+		-e INPUT=/input \
+		-e OUTPUT=/output \
+		-e REPO_KB=/kb \
+		-e RUN_NAME=test \
+		-e TEMP=/aida/tmp \
+		-e NAMESPACE=/aida/res/aida-namespaces-uiuc.tsv \
+		-e WD_FB_MAPPING=/aida/res/df_wd_fb.csv \
+		-e NUM_PROC=30 \
+		-v $$(pwd)/../../pipeline_test/input:/input:ro \
+		-v $$(pwd)/../../pipeline_test/output:/output \
+		-v $$(pwd)/../../pipeline_test/LDC2020E27:/kb \
+		-v $$(pwd)/../../pipeline_test/temp:/aida/tmp \
+		-v $$(pwd)/../../pipeline_test/res:/aida/res \
+		-v $$(pwd):/aida/ta2-pipeline \
+		--entrypoint /bin/bash gaiaaida/ta2

@@ -46,8 +46,9 @@ class Importer(object):
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source,
                                   ldc_kg, df_wd_fb, kb_to_fb_mapping)
-            # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
-            # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
+            self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+            self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source,
+                                      entity_outfile, event_outfile)
             self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
             self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source,
                                          entity_outfile, relation_outfile)
@@ -454,6 +455,7 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
         df_entity_complete['source'] = source
+        df_entity_complete = df_entity_complete.reset_index(drop=True)
 
         ### export
         if not self.validate_entity_df(df_entity_complete):
@@ -533,6 +535,7 @@ class Importer(object):
         df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
         df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
         df_event_complete['source'] = source
+        df_event_complete = df_event_complete.reset_index(drop=True)
 
         ### export
         self.logger.info('exporting df')
@@ -541,17 +544,27 @@ class Importer(object):
             df_event_complete.to_hdf(output_file, 'event', mode='w', format='fixed')
             df_event_complete.to_csv(output_file + '.csv')
 
-    def create_event_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+    def create_event_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source, entity_file, event_file):
         self.logger.info('creating event role df for ' + source)
         exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        exec_sh("awk -F'\t' '$1 ~ /^event:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} > {tmp_file1}"
+        exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_event_role = pd.DataFrame(columns=['event', 'role', 'entity'])
         try:
-            df_event_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t').rename(
-                columns={'node1': 'entity', 'label': 'role', 'node2': 'event'})
+            # entity ids and relation ids
+            df_entity = pd.read_hdf(entity_file)['e']
+            entity_ids = set([v for v in df_entity.to_dict().values()])
+            df_event = pd.read_hdf(event_file)['e']
+            event_ids = set([v for v in df_event.to_dict().values()])
+
+            df_event_role = pd.read_csv(self.tmp_file_path(1),
+                delimiter='\t', index_col=False, header=None, names=['event', 'role', 'entity'])
             df_event_role['source'] = source
+
+            df_event_role = df_event_role.loc[df_event_role['entity'].isin(entity_ids)]
+            df_event_role = df_event_role.loc[df_event_role['event'].isin(event_ids)]
+            df_event_role = df_event_role.reset_index(drop=True)
         except pd.errors.EmptyDataError:
             pass
 

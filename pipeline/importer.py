@@ -48,8 +48,9 @@ class Importer(object):
                                   ldc_kg, df_wd_fb, kb_to_fb_mapping)
             # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
             # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source)
-            # self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
-            # self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source)
+            self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
+            self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source,
+                                         entity_outfile, relation_outfile)
 
         except:
             self.logger.exception('Exception caught in Importer.run()')
@@ -611,6 +612,7 @@ class Importer(object):
         df_relation_complete = pd.merge(df_relation_complete, df_relation_infojust, how='left')
         df_relation_complete = pd.merge(df_relation_complete, df_relation_just, how='left')
         df_relation_complete['source'] = source
+        df_relation_complete = df_relation_complete.reset_index(drop=True)
 
         ### export
         self.logger.info('exporting df')
@@ -619,19 +621,28 @@ class Importer(object):
             df_relation_complete.to_hdf(output_file, 'relation', mode='w', format='fixed')
             df_relation_complete.to_csv(output_file + '.csv')
 
-    def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
+    def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source, entity_file, relation_file):
         self.logger.info('creating relation role df for ' + source)
         exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        exec_sh('echo -e "relation\trole\tentity" > {tmp_file1}'.format(tmp_file1=self.tmp_file_path(1)), self.logger)
-        exec_sh("awk -F'\t' '$1 ~ /^relation:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
-                     .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
-        exec_sh("awk -F'\t' '$1 ~ /^columbia:/ && $2 ~ /^ldcOnt:/ && $3 ~ /^entity:/' {tmp_file} >> {tmp_file1}"
+        exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_relation_role = pd.DataFrame(columns=['relation', 'role', 'entity'])
         try:
-            df_relation_role = pd.read_csv(self.tmp_file_path(1), delimiter='\t', index_col=False)
+            # entity ids and relation ids
+            df_entity = pd.read_hdf(entity_file)['e']
+            entity_ids = set([v for v in df_entity.to_dict().values()])
+            df_relation = pd.read_hdf(relation_file)['e']
+            relation_ids = set([v for v in df_relation.to_dict().values()])
+
+            # read relations
+            df_relation_role = pd.read_csv(self.tmp_file_path(1),
+                delimiter='\t', index_col=False, header=None, names=['relation', 'role', 'entity'])
             df_relation_role['source'] = source
+
+            df_relation_role = df_relation_role.loc[df_relation_role['entity'].isin(entity_ids)]
+            df_relation_role = df_relation_role.loc[df_relation_role['relation'].isin(relation_ids)]
+            df_relation_role = df_relation_role.reset_index(drop=True)
         except pd.errors.EmptyDataError:
             pass
 

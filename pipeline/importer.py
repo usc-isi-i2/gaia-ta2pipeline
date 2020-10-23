@@ -231,6 +231,7 @@ class Importer(object):
                         target_type.append(data['type'])
                         target_name.append(tuple(data['names']))
                     else:
+                        self.logger.error('Target ID is not in REFKB: {}'.format(target_id))
                         target_type.append(None)
                         target_name.append(None)
 

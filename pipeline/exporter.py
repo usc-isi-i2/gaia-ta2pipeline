@@ -57,6 +57,15 @@ MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
   aida:system         gaia:TA2
 ] .\n"""
 
+
+SUPER_EDGE_TEMPLATE = """[ 
+    rdf:object          {proto2} ;
+    rdf:predicate       {edge_type} ;
+    rdf:subject         {proto1};
+    aida:importance     "{edge_iv}"^^xsd:double ;
+    aida:system         gaia:TA2 
+] .\n"""
+
 COLUMNS = ['e', 'name', 'type', 'target', 'target_score', 'target_type',
            'target_name', 'fbid', 'fbid_score_avg', 'fbid_score_max', 'wikidata',
            'wikidata_label_en', 'wikidata_label_ru', 'wikidata_label_uk',
@@ -65,7 +74,7 @@ COLUMNS = ['e', 'name', 'type', 'target', 'target_score', 'target_type',
            'wikidata_alias_uk', 'infojust_confidence', 'informative_justification',
            'just_confidence', 'justified_by', 'source', 'cluster', 'synthetic', 'cluster_member_confidence']
 
-ESEENTIAL_COLUMNS = ["e",
+ESSENTIAL_COLUMNS = ["e",
                      "cluster",
                      # "infojust_confidence",
                      # "informative_justification",
@@ -74,14 +83,20 @@ ESEENTIAL_COLUMNS = ["e",
                      "source",
                      "cluster_member_confidence"]
 
+ESSENTIAL_COLUMNS_RELATION = [
+    'prototype1', 'prototype2', 'role', 'importance'
+]
+
 
 class Exporter(object):
-    def __init__(self, infile, outfile):
+    def __init__(self, entity, relation, outfile):
 
-        df = pd.read_hdf(infile)
+        df = pd.read_hdf(entity)
+        df_relation = pd.read_hdf(relation)
         self.fp = open(outfile, "w")
-        self.df = df[df["synthetic"] == False][ESEENTIAL_COLUMNS]
-        self.proto_df = df[df["synthetic"] == True][ESEENTIAL_COLUMNS]
+        self.df = df[df["synthetic"] == False][ESSENTIAL_COLUMNS]
+        self.proto_df = df[df["synthetic"] == True][ESSENTIAL_COLUMNS]
+        self.df_relation = df_relation[ESSENTIAL_COLUMNS_RELATION]
         self.n = self.df.shape[0]
         self.entities = None
         self.clusters = set()
@@ -118,6 +133,7 @@ class Exporter(object):
         self.declare_system()
         self.declare_entity_cluster_membership()
         # self.declare_entity_assertion()
+        self.declare_super_edge()
 
     def __dell__(self):
         self.fp.close()
@@ -211,6 +227,16 @@ class Exporter(object):
                                                                   source)
                 self.write(assertion_info)
 
+    def declare_super_edge(self):
+        for idx, row in self.df_relation.iterrows():
+            proto1 = self.extend_prefix(row['prototype1'])
+            proto2 = self.extend_prefix(row['prototype2'])
+            edge_type = self.extend_prefix(row['role'])
+            edge_iv = row['importance']
+            super_edge_info = SUPER_EDGE_TEMPLATE.format(
+                proto1=proto1, proto2=proto2, edge_type=edge_type, edge_iv=edge_iv)
+            self.write(super_edge_info)
+
 
 def process():
 
@@ -220,19 +246,21 @@ def process():
     os.makedirs(output_dir, exist_ok=True)
 
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')):
+
+        relation_role_file = infile[:-len('entity_cluster.h5')] + 'entity_cluster_relation_role.h5'
         outfile = os.path.join(output_dir, 'ta2_entity_cluster.ttl')
-        exporter = Exporter(infile, outfile)
+        exporter = Exporter(infile, relation_role_file, outfile)
         exporter.run()
 
     # merge with ta1 output
-    input_dir = os.path.join(config['input_dir'], config['run_name'])
-    output_dir = os.path.join(config['output_dir'], config['run_name'])
-    exec_sh('cat {input_dir}/*.ttl > {output_dir}/ta1.ttl'
-            .format(input_dir=input_dir, output_dir=output_dir), logger)
-    exec_sh('cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl'
-            .format(input_dir=input_dir, output_dir=output_dir), logger)
-    exec_sh('rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl'
-            .format(output_dir=output_dir), logger)
+    # input_dir = os.path.join(config['input_dir'], config['run_name'])
+    # output_dir = os.path.join(config['output_dir'], config['run_name'])
+    # exec_sh('cat {input_dir}/*.ttl > {output_dir}/ta1.ttl'
+    #         .format(input_dir=input_dir, output_dir=output_dir), logger)
+    # exec_sh('cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl'
+    #         .format(input_dir=input_dir, output_dir=output_dir), logger)
+    # exec_sh('rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl'
+    #         .format(output_dir=output_dir), logger)
 
     # # assign bnode globally unique id
     # counter = [0]

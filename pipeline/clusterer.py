@@ -171,6 +171,9 @@ class Cluster(object):
         self.wd_candidate = {}
         self.name_labels = None
 
+        self.relations = defaultdict(int)  # (role, cluster) -> count
+        self.relations_importance = {}  # (role, cluster) -> score
+
         self.prototype = None
         self.id_ = self.random_str(10)
         self.full_id = None
@@ -264,6 +267,11 @@ class Cluster(object):
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 
+    def compute_relation_role_importance(self):
+        total_conn = sum(self.relations.values())
+        for conn, cnt in self.relations.items():
+            self.relations_importance[conn] = max(0.01, round(float(cnt) / total_conn, 2))
+
     def debug(self):
         return {
             'wd_id': self.wd_id,
@@ -288,16 +296,20 @@ def normalize_type(t):
 def process():
 
     df_entity = pd.DataFrame()
+    df_relation_role = pd.DataFrame()
 
     logger.info('loading entity dataframes')
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
         df_entity = df_entity.append(pd.read_hdf(infile))
+        relation_role_file = infile[:-len('entity.h5')] + 'relation_role.h5'
+        df_relation_role = df_relation_role.append(pd.read_hdf(relation_role_file))
     df_entity = df_entity.drop_duplicates(subset=['e'], keep='last')  # cmu data has cross document entities, only keep one
     df_entity = df_entity.reset_index(drop=True)
     logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
+    df_relation_role = df_relation_role.drop_duplicates()
 
     ### filtering
     logger.info('filtering out some entity types')
@@ -461,11 +473,26 @@ def process():
     for e, c in entity_to_cluster.items():
         if len(c) > 1:
             logger.error('Entity in multiple clusters detected, entity id: %s', e)
+    entity_to_cluster = {e: c[0] for e, c in entity_to_cluster.items()}
 
     ### generate cluster properties
     logger.info('generating cluster properties')
     for c in final_clusters:
         c.generate()
+
+    ### relation
+    relation = defaultdict(list)
+    for k, v in df_relation_role.iterrows():
+        relation[v['relation']].append((v['entity'], v['role']))
+    for v in relation.values():
+        r1, r1_role = v[0]
+        r2, r2_role = v[1]
+        c1 = entity_to_cluster[r1]
+        c2 = entity_to_cluster[r2]
+        c1.relations[(r1_role, c2)] += 1
+        c2.relations[(r2_role, c1)] += 1
+    for e in final_clusters:
+        e.compute_relation_role_importance()
 
     ### export
     logger.info('exporting clusters')
@@ -476,7 +503,7 @@ def process():
 
     logger.info('updating cluster info for each entity')
     for idx, e in df_entity_cluster['e'].items():
-        clusters = list(set([c for c in entity_to_cluster[e]]))
+        clusters = [entity_to_cluster[e]]
         cluster_ids = tuple([c.full_id for c in clusters])
         confidences = tuple([c.member_confidence[e] for c in clusters])
         df_entity_cluster.at[idx, 'cluster'] = cluster_ids
@@ -515,6 +542,21 @@ def process():
         for c in final_clusters:
             f.write(json.dumps(c.debug()) + '\n')
 
+    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': []}
+    for c1 in final_clusters:
+        proto1 = c1.prototype
+        for (role, c2), importance in c1.relations_importance.items():
+            proto2 = c2.prototype
+            cluster_relation_dict['prototype1'].append(proto1)
+            cluster_relation_dict['prototype2'].append(proto2)
+            cluster_relation_dict['role'].append(role)
+            cluster_relation_dict['importance'].append(importance)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)
+        df_entity_cluster_relation_role.to_hdf(output_file + '_relation_role.h5', 'relation_role', mode='w', format='fixed')
+        df_entity_cluster_relation_role.to_csv(output_file + '_relation_role.h5.csv')
 
 
 if __name__ == '__main__':

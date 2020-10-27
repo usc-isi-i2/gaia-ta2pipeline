@@ -484,9 +484,9 @@ def process():
     relation = defaultdict(list)
     for k, v in df_relation_role.iterrows():
         relation[v['relation']].append((v['entity'], v['role']))
-    for v in relation.values():
+    for k, v in relation.items():
         if len(v) != 2:
-            logger.error('Ignoring an incorrect relation pair: ' + str(v))
+            logger.error('Ignoring an incorrect relation: ' + k + ' ' + str(v))
             continue
         r1, r1_role = v[0]
         r2, r2_role = v[1]

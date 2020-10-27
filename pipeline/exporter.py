@@ -59,12 +59,25 @@ MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
 
 
 SUPER_EDGE_TEMPLATE = """[ 
+    a                   rdf:Statement ;
     rdf:object          {proto2} ;
     rdf:predicate       {edge_type} ;
-    rdf:subject         {proto1};
+    rdf:subject         {proto1} ;
     aida:importance     "{edge_iv}"^^xsd:double ;
+    aida:justifiedBy  [ 
+        a                   aida:CompoundJustification ;
+        aida:confidence [ 
+            a                       aida:Confidence ;
+            aida:confidenceValue    "{compound_cv}"^^xsd:double ;
+            aida:system             gaia:TA2
+        ] ;
+        {compound_infojust}
+        aida:system     gaia:TA2
+    ] ;
     aida:system         gaia:TA2 
 ] .\n"""
+
+SUPER_EDGE_COMPOUND_JUSTIFICATION = """aida:containedJustification {infojust} ;\n"""
 
 COLUMNS = ['e', 'name', 'type', 'target', 'target_score', 'target_type',
            'target_name', 'fbid', 'fbid_score_avg', 'fbid_score_max', 'wikidata',
@@ -84,7 +97,7 @@ ESSENTIAL_COLUMNS = ["e",
                      "cluster_member_confidence"]
 
 ESSENTIAL_COLUMNS_RELATION = [
-    'prototype1', 'prototype2', 'role', 'importance'
+    'prototype1', 'prototype2', 'role', 'importance', 'infojust', 'compound_cv'
 ]
 
 
@@ -233,8 +246,15 @@ class Exporter(object):
             proto2 = self.extend_prefix(row['prototype2'])
             edge_type = self.extend_prefix(row['role'])
             edge_iv = row['importance']
+            compound_cv = row['compound_cv']
+
+            super_edge_infojust_info = ''
+            for ij in row['infojust']:
+                ij = self.extend_prefix(ij)
+                super_edge_infojust_info += SUPER_EDGE_COMPOUND_JUSTIFICATION.format(infojust=ij)
             super_edge_info = SUPER_EDGE_TEMPLATE.format(
-                proto1=proto1, proto2=proto2, edge_type=edge_type, edge_iv=edge_iv)
+                proto1=proto1, proto2=proto2, edge_type=edge_type, edge_iv=edge_iv,
+                compound_infojust=super_edge_infojust_info, compound_cv=compound_cv)
             self.write(super_edge_info)
 
 

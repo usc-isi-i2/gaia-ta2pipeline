@@ -183,8 +183,9 @@ class Cluster(object):
         self.wd_candidate = {}
         self.name_labels = None
 
-        self.relations = defaultdict(int)  # (role, cluster) -> count
-        self.relations_importance = {}  # (role, cluster) -> score
+        self.relation_role = defaultdict(list)  # (role, cluster) -> [{relation: {infojust, infojust_cv}}]
+        self.relation_role_importance = {}  # (role, cluster) -> score
+        self.relation_role_compound_cv = {}  # (role, cluster) -> score
 
         self.prototype = None
         self.id_ = self.random_str(10)
@@ -279,10 +280,12 @@ class Cluster(object):
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 
-    def compute_relation_role_importance(self):
-        total_conn = sum(self.relations.values())
-        for conn, cnt in self.relations.items():
-            self.relations_importance[conn] = max(0.01, round(float(cnt) / total_conn, 2))
+    def compute_relation_role(self):
+        total_conn = sum([len(v) for v in self.relation_role.values()])
+        for conn, rels in self.relation_role.items():
+            cnt = len(rels)
+            self.relation_role_importance[conn] = max(0.01, round(float(cnt) / total_conn, 2))
+            self.relation_role_compound_cv[conn] = max(0.01, round(max([rel['infojust_cv'] for rel in rels]), 2))
 
     def debug(self):
         return {
@@ -308,12 +311,15 @@ def normalize_type(t):
 def process():
 
     df_entity = pd.DataFrame()
+    df_relation = pd.DataFrame()
     df_relation_role = pd.DataFrame()
 
     logger.info('loading entity dataframes')
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
         df_entity = df_entity.append(pd.read_hdf(infile))
+        relation_file = infile[:-len('entity.h5')] + 'relation.h5'
+        df_relation = df_relation.append(pd.read_hdf(relation_file))
         relation_role_file = infile[:-len('entity.h5')] + 'relation_role.h5'
         df_relation_role = df_relation_role.append(pd.read_hdf(relation_role_file))
     df_entity = df_entity.drop_duplicates(subset=['e'], keep='last')  # cmu data has cross document entities, only keep one
@@ -321,6 +327,7 @@ def process():
     logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
+    df_relation = df_relation.drop_duplicates()
     df_relation_role = df_relation_role.drop_duplicates()
 
     ### filtering
@@ -493,10 +500,16 @@ def process():
         c.generate()
 
     ### relation
-    relation = defaultdict(list)
+    relation = {}
+    for idx, v in df_relation.iterrows():
+        relation[v['e']] = {
+            'infojust': v['informative_justification'],
+            'infojust_cv': v['infojust_confidence']
+        }
+    relation_role = defaultdict(list)
     for k, v in df_relation_role.iterrows():
-        relation[v['relation']].append((v['entity'], v['role']))
-    for k, v in relation.items():
+        relation_role[v['relation']].append((v['entity'], v['role']))
+    for k, v in relation_role.items():
         if len(v) != 2:
             logger.error('Ignoring an incorrect relation: ' + k + ' ' + str(v))
             continue
@@ -504,10 +517,10 @@ def process():
         r2, r2_role = v[1]
         c1 = entity_to_cluster[r1]
         c2 = entity_to_cluster[r2]
-        c1.relations[(r1_role, c2)] += 1
-        c2.relations[(r2_role, c1)] += 1
+        c1.relation_role[(r1_role, c2)].append(relation[k])
+        c2.relation_role[(r2_role, c1)].append(relation[k])
     for e in final_clusters:
-        e.compute_relation_role_importance()
+        e.compute_relation_role()
 
     ### export
     logger.info('exporting clusters')
@@ -547,16 +560,24 @@ def process():
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
     df_complete_entity_clusters.reset_index(drop=True)
 
-    logger.info('creating relation dataframe')
-    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': []}
+    logger.info('creating relation role dataframe')
+    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': [],
+                             'infojust': [], 'compound_cv': []}
     for c1 in final_clusters:
         proto1 = c1.prototype
-        for (role, c2), importance in c1.relations_importance.items():
+        for conn, importance in c1.relation_role_importance.items():
+            role, c2 = conn
             proto2 = c2.prototype
             cluster_relation_dict['prototype1'].append(proto1)
             cluster_relation_dict['prototype2'].append(proto2)
             cluster_relation_dict['role'].append(role)
             cluster_relation_dict['importance'].append(importance)
+
+            compound_cv = c1.relation_role_compound_cv[conn]
+            cluster_relation_dict['compound_cv'].append(compound_cv)
+            infojust = tuple(set([r['infojust'] for r in c1.relation_role[conn]]))
+            cluster_relation_dict['infojust'].append(infojust)
+
     df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)
 
     logger.info('writing to disk')

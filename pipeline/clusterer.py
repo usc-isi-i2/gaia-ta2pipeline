@@ -535,6 +535,18 @@ def process():
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
     df_complete_entity_clusters.reset_index(drop=True)
 
+    logger.info('creating relation dataframe')
+    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': []}
+    for c1 in final_clusters:
+        proto1 = c1.prototype
+        for (role, c2), importance in c1.relations_importance.items():
+            proto2 = c2.prototype
+            cluster_relation_dict['prototype1'].append(proto1)
+            cluster_relation_dict['prototype2'].append(proto2)
+            cluster_relation_dict['role'].append(role)
+            cluster_relation_dict['importance'].append(importance)
+    df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)
+
     logger.info('writing to disk')
     output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
     with warnings.catch_warnings():
@@ -545,19 +557,8 @@ def process():
         for c in final_clusters:
             f.write(json.dumps(c.debug()) + '\n')
 
-    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': []}
-    for c1 in final_clusters:
-        proto1 = c1.prototype
-        for (role, c2), importance in c1.relations_importance.items():
-            proto2 = c2.prototype
-            cluster_relation_dict['prototype1'].append(proto1)
-            cluster_relation_dict['prototype2'].append(proto2)
-            cluster_relation_dict['role'].append(role)
-            cluster_relation_dict['importance'].append(importance)
-
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)
         df_entity_cluster_relation_role.to_hdf(output_file + '_relation_role.h5', 'relation_role', mode='w', format='fixed')
         df_entity_cluster_relation_role.to_csv(output_file + '_relation_role.h5.csv')
 

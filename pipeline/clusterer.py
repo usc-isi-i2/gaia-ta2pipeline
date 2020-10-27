@@ -485,6 +485,9 @@ def process():
     for k, v in df_relation_role.iterrows():
         relation[v['relation']].append((v['entity'], v['role']))
     for v in relation.values():
+        if len(v) != 2:
+            logger.error('Ignoring an incorrect relation pair: ' + str(v))
+            continue
         r1, r1_role = v[0]
         r2, r2_role = v[1]
         c1 = entity_to_cluster[r1]

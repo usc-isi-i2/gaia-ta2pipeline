@@ -46,9 +46,9 @@ class Importer(object):
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source,
                                   ldc_kg, df_wd_fb, kb_to_fb_mapping)
-            self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
-            self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source,
-                                      entity_outfile, event_outfile)
+            # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+            # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source,
+            #                           entity_outfile, event_outfile)
             self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
             self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source,
                                          entity_outfile, relation_outfile)
@@ -421,30 +421,30 @@ class Importer(object):
             df_wd.loc[idx].at['wikidata_alias_ru'] = tuple([l.get('ru') for l in aliases])
             df_wd.loc[idx].at['wikidata_alias_uk'] = tuple([l.get('uk') for l in aliases])
 
-        ### informative justification
-        self.logger.info('creating informative justification')
-        df_infojust = self.predicate_path(unreified_kgtk_file,
-            'aida:informativeJustification/aida:confidence/aida:confidenceValue',
-            retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
-
-        ### justified by
-        self.logger.info('creating justified by')
-        df_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
-                                 retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_just = pd.merge(df_entity, df_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
-
-        def merge_just(v):
-            if len(v.index > 0):
-                confidence = tuple(v['just_confidence'].to_list())
-                justified_by = tuple(v['justified_by'].to_list())
-                return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
-
-        df_just = df_just.groupby('e')[['just_confidence', 'justified_by']].apply(merge_just).reset_index()
+        # ### informative justification
+        # self.logger.info('creating informative justification')
+        # df_infojust = self.predicate_path(unreified_kgtk_file,
+        #     'aida:informativeJustification/aida:confidence/aida:confidenceValue',
+        #     retain_intermediate=True) \
+        #     .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
+        #     .drop(columns=['inter_2'])
+        # df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
+        #
+        # ### justified by
+        # self.logger.info('creating justified by')
+        # df_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
+        #                          retain_intermediate=True) \
+        #     .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
+        #     .drop(columns=['inter_2'])
+        # df_just = pd.merge(df_entity, df_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
+        #
+        # def merge_just(v):
+        #     if len(v.index > 0):
+        #         confidence = tuple(v['just_confidence'].to_list())
+        #         justified_by = tuple(v['justified_by'].to_list())
+        #         return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
+        #
+        # df_just = df_just.groupby('e')[['just_confidence', 'justified_by']].apply(merge_just).reset_index()
 
         ### merge
         self.logger.info('merging all dfs to entity df')
@@ -452,8 +452,8 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity_complete, df_type, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_target, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_wd, how='left')
-        df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
-        df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
+        # df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
+        # df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
         df_entity_complete['source'] = source
         df_entity_complete = df_entity_complete.reset_index(drop=True)
 
@@ -602,28 +602,33 @@ class Importer(object):
         df_relation_infojust = pd.merge(df_relation, df_relation_infojust, left_on='e',
                                         right_on='e')  # .drop(columns=['label', 'id'])
 
-        ### justified by
-        self.logger.info('creating justified by')
-        df_relation_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
-                                          retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_relation_just = pd.merge(df_relation, df_relation_just, left_on='e',
-                                    right_on='e')  # .drop(columns=['label', 'id'])
+        infojust_hierarchy = defaultdict(set)
+        # valid justification types: https://github.com/NextCenturyCorporation/AIDA-Interchange-Format/blob/ef8beffc50d05466be730fd3c67330d6dfbdeaf3/java/src/main/resources/com/ncc/aif/aida_ontology.shacl#L826-L841
+        exec_sh('kgtk filter -p ";rdf:type;aida:TextJustification,aida:AudioJustification,aida:ImageJustification,aida:KeyFrameVideoJustification,aida:ShotVideoJustification,aida:VideoJustification" {kgtk_file} > {tmp_file}'
+                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+        df_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+        for ij in df_tmp['node1'].values:
+            infojust_hierarchy[ij].add(ij)
+        # compound justification
+        exec_sh('kgtk filter -p ";aida:containedJustification;" {kgtk_file} > {tmp_file1}'
+            .format(kgtk_file=unreified_kgtk_file, tmp_file1=self.tmp_file_path(1)), self.logger)
+        df_tmp1 = pd.read_csv(self.tmp_file_path(1), delimiter='\t')
+        # df_tmp1 = pd.merge(df_tmp1, df_tmp, left_on='node2', right_on='node1')
+        for idx, v in df_tmp1[['node1', 'node2']].iterrows():
+            compij = v['node1']
+            ij = v['node2']
+            infojust_hierarchy[compij].add(ij)
 
-        def merge_relation_just(v):
-            if len(v.index > 0):
-                confidence = tuple(v['just_confidence'].to_list())
-                justified_by = tuple(v['justified_by'].to_list())
-                return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
-
-        df_relation_just = df_relation_just.groupby('e')[['just_confidence', 'justified_by']].apply(
-            merge_relation_just).reset_index()
+        infojust_hierarchy_dict = {'informative_justification': [], 'infojust_extended': []}
+        for k, v in infojust_hierarchy.items():
+            infojust_hierarchy_dict['informative_justification'].append(k)
+            infojust_hierarchy_dict['infojust_extended'].append(tuple(v))
+        df_infojust_extended = pd.DataFrame(infojust_hierarchy_dict)
 
         ### merge
         df_relation_complete = pd.merge(df_relation, df_relation_type, how='left')
         df_relation_complete = pd.merge(df_relation_complete, df_relation_infojust, how='left')
-        df_relation_complete = pd.merge(df_relation_complete, df_relation_just, how='left')
+        df_relation_complete = pd.merge(df_relation_complete, df_infojust_extended, how='left')
         df_relation_complete['source'] = source
         df_relation_complete = df_relation_complete.reset_index(drop=True)
 

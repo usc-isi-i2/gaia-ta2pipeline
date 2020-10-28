@@ -185,7 +185,7 @@ class Cluster(object):
         self.wd_candidate = {}
         self.name_labels = None
 
-        self.relation_role = defaultdict(list)  # (role, cluster) -> [{relation: {infojust, infojust_cv}}]
+        self.relation_role = defaultdict(list)  # (role, cluster) -> [{relation: {infojust, infojust_extended, infojust_cv}}]
         self.relation_role_importance = {}  # (role, cluster) -> score
         self.relation_role_compound_cv = {}  # (role, cluster) -> score
 
@@ -506,6 +506,7 @@ def process():
     for idx, v in df_relation.iterrows():
         relation[v['e']] = {
             'infojust': v['informative_justification'],
+            'infojust_extended': v['infojust_extended'],
             'infojust_cv': v['infojust_confidence']
         }
     relation_role = defaultdict(list)
@@ -577,7 +578,7 @@ def process():
 
             compound_cv = c1.relation_role_compound_cv[conn]
             cluster_relation_dict['compound_cv'].append(compound_cv)
-            infojust = tuple(set([r['infojust'] for r in c1.relation_role[conn]]))
+            infojust = tuple(set([rr for r in c1.relation_role[conn] for rr in r['infojust_extended']]))
             cluster_relation_dict['infojust'].append(infojust)
 
     df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)

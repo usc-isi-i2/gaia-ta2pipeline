@@ -265,6 +265,43 @@ class Importer(object):
                 df_target.loc[idx].at['target_type'] = tuple(target_type)
                 df_target.loc[idx].at['target_name'] = tuple(target_name)
 
+        # check target again and make sure all target names have value
+        # if target name is None, then corresponding target id should be removed
+        # if target name is a list of Nones, remove Nones. If if then be an empty list, make it None
+        for idx_g, targets in df_target.iterrows():
+            target = targets['target']
+            target_name = targets['target_name']
+            target_score = targets['target_score']
+
+            remove_idx = []
+            if target_name:
+                for idx, tn in enumerate(target_name):
+                    if not tn:
+                        remove_idx.append(idx)
+
+                if len(remove_idx) > 0:
+                    remove_idx.sort(reverse=True)
+                    target = list(target)
+                    target_name = list(target_name)
+                    target_score = list(target_score)
+                    for idx in remove_idx:
+                        del target_name[idx]
+                        del target[idx]
+                        del target_score[idx]
+
+                    if len(target_name) == 0:
+                        target_name = None
+                        target = None
+                        target_score = None
+                    else:
+                        target = tuple(target)
+                        target_name = tuple(target_name)
+                        target_score = tuple(target_score)
+
+                    df_target.loc[idx_g]['target'] = target
+                    df_target.loc[idx_g]['target_name'] = target_name
+                    df_target.loc[idx_g]['target_score'] = target_score
+
         ### freebase id
         self.logger.info('creating freebase')
         exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'

@@ -22,7 +22,7 @@ Environment variables:
 - `NAMESPACE`: The namespace file. Please use different namespace files for different TA1 teams.
 - `WD_FB_MAPPING`: Wikidata to Freebase mapping.
 - `KB_FBID_MAPPING` (optional): The path of the REFKB to Wikidata mapping file. This needs to be set for non-UIUC TA1 data.
-- `ENABLE_CMU_GID_PATCH` (optional): Set it to `True` for CMU ta1 data. It expends all CMU prefix URIs with doc id.
+- `ENABLE_CMU_GID_PATCH` (optional): Set it to `True` for CMU ta1 data. It expands all CMU prefix URIs with doc id.
 
 Docker run:
 

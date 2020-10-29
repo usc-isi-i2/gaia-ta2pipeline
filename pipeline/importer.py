@@ -50,9 +50,9 @@ class Importer(object):
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source,
                                   ldc_kg, df_wd_fb, kb_to_fb_mapping)
-            # self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
-            # self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source,
-            #                           entity_outfile, event_outfile)
+            self.create_event_df(kgtk_file, unreified_kgtk_file, event_outfile, self.source)
+            self.create_event_role_df(kgtk_file, unreified_kgtk_file, event_role_outfile, self.source,
+                                      entity_outfile, event_outfile)
             self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
             self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source,
                                          entity_outfile, relation_outfile)
@@ -527,38 +527,38 @@ class Importer(object):
         df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label'])\
             .rename(columns={'node1': 'e', 'node2': 'name'})
 
-        ### informative justification
-        self.logger.info('creating informative justification')
-        df_event_infojust = self.predicate_path(unreified_kgtk_file,
-                                           'aida:informativeJustification/aida:confidence/aida:confidenceValue',
-                                           retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_event_infojust = pd.merge(df_event, df_event_infojust, left_on='e',
-                                     right_on='e')  # .drop(columns=['label', 'id'])
-
-        ### justified by
-        self.logger.info('creating justified by')
-        df_event_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
-                                       retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_event_just = pd.merge(df_event, df_event_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
-
-        def merge_event_just(v):
-            if len(v.index > 0):
-                confidence = tuple(v['just_confidence'].to_list())
-                justified_by = tuple(v['justified_by'].to_list())
-                return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
-
-        df_event_just = df_event_just.groupby('e')[['just_confidence', 'justified_by']].apply(
-            merge_event_just).reset_index()
+        # ### informative justification
+        # self.logger.info('creating informative justification')
+        # df_event_infojust = self.predicate_path(unreified_kgtk_file,
+        #                                    'aida:informativeJustification/aida:confidence/aida:confidenceValue',
+        #                                    retain_intermediate=True) \
+        #     .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
+        #     .drop(columns=['inter_2'])
+        # df_event_infojust = pd.merge(df_event, df_event_infojust, left_on='e',
+        #                              right_on='e')  # .drop(columns=['label', 'id'])
+        #
+        # ### justified by
+        # self.logger.info('creating justified by')
+        # df_event_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
+        #                                retain_intermediate=True) \
+        #     .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
+        #     .drop(columns=['inter_2'])
+        # df_event_just = pd.merge(df_event, df_event_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
+        #
+        # def merge_event_just(v):
+        #     if len(v.index > 0):
+        #         confidence = tuple(v['just_confidence'].to_list())
+        #         justified_by = tuple(v['justified_by'].to_list())
+        #         return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
+        #
+        # df_event_just = df_event_just.groupby('e')[['just_confidence', 'justified_by']].apply(
+        #     merge_event_just).reset_index()
 
 
         ### merge
         df_event_complete = pd.merge(df_event, df_event_type, how='left')
-        df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
-        df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
+        # df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
+        # df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
         df_event_complete['source'] = source
         df_event_complete = df_event_complete.reset_index(drop=True)
 

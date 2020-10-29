@@ -313,13 +313,19 @@ def normalize_type(t):
 def process():
 
     df_entity = pd.DataFrame()
+    df_event = pd.DataFrame()
     df_relation = pd.DataFrame()
     df_relation_role = pd.DataFrame()
 
     logger.info('loading entity dataframes')
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
+        # entity
         df_entity = df_entity.append(pd.read_hdf(infile))
+        # event
+        event_file = infile[:-len('entity.h5')] + 'event.h5'
+        df_event = df_event.append(pd.read_hdf(event_file))
+        # relation
         relation_file = infile[:-len('entity.h5')] + 'relation.h5'
         df_relation = df_relation.append(pd.read_hdf(relation_file))
         relation_role_file = infile[:-len('entity.h5')] + 'relation_role.h5'
@@ -329,6 +335,7 @@ def process():
     logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
+    df_event = df_event.drop_duplicates(subset=['e'], keep='last')
     df_relation = df_relation.drop_duplicates()
     df_relation_role = df_relation_role.drop_duplicates()
 
@@ -595,6 +602,10 @@ def process():
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
+        event_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event_cluster.h5')
+        df_event.to_hdf(event_output_file, 'event')
+        relation_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation_cluster.h5')
+        df_relation.to_hdf(relation_output_file, 'relation')
         df_entity_cluster_relation_role.to_hdf(output_file + '_relation_role.h5', 'relation_role', mode='w', format='fixed')
         df_entity_cluster_relation_role.to_csv(output_file + '_relation_role.h5.csv')
 

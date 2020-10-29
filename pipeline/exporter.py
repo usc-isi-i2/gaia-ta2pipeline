@@ -7,7 +7,6 @@ from collections import defaultdict
 from config import config, get_logger
 from common import exec_sh
 
-
 # run validator
 # docker run --rm -it -v /tmp/aif_validator:/v -e VALIDATION_HOME=/opt/aif-validator -e VALIDATION_FLAGS=--ldc -e TARGET_TO_VALIDATE=/v --name aifvalidator nextcenturycorp/aif_validator
 
@@ -22,8 +21,8 @@ NAMESPACE = {
 ENTITY_TEMPLATE = """{} a       aida:Entity ;
         aida:system  gaia:TA1 .\n"""
 
-CLUSTER_TEMPLATE = """{}  a        aida:SameAsCluster ;
-        aida:prototype  {} ;
+CLUSTER_TEMPLATE = """{cluster}  a        aida:SameAsCluster ;
+        aida:prototype  {proto} ;
         aida:system     gaia:TA2 .\n"""
 
 ENTITY_ASSERTION_TEMPLATE = """{}  a        rdf:Statement ;
@@ -48,10 +47,10 @@ ENTITY_ASSERTION_TEMPLATE = """{}  a        rdf:Statement ;
         aida:system       gaia:TA2 .\n"""
 
 MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
-  aida:cluster        {} ;
-  aida:clusterMember  {} ;
+  aida:cluster        {cluster} ;
+  aida:clusterMember  {member} ;
   aida:confidence     [ a                     aida:Confidence ;
-                        aida:confidenceValue  "{}"^^xsd:double ;
+                        aida:confidenceValue  "{cv}"^^xsd:double ;
                         aida:system           gaia:TA2
                       ] ;
   aida:system         gaia:TA2
@@ -102,14 +101,16 @@ ESSENTIAL_COLUMNS_RELATION = [
 
 
 class Exporter(object):
-    def __init__(self, entity, relation, outfile):
+    def __init__(self, entity, relation_role, event, relation, outfile):
 
         df = pd.read_hdf(entity)
-        df_relation = pd.read_hdf(relation)
+        df_relation_role = pd.read_hdf(relation_role)
         self.fp = open(outfile, "w")
         self.df = df[df["synthetic"] == False][ESSENTIAL_COLUMNS]
         self.proto_df = df[df["synthetic"] == True][ESSENTIAL_COLUMNS]
-        self.df_relation = df_relation[ESSENTIAL_COLUMNS_RELATION]
+        self.df_relation_role = df_relation_role[ESSENTIAL_COLUMNS_RELATION]
+        self.df_event = pd.read_hdf(event)
+        self.df_relation = pd.read_hdf(relation)
         self.n = self.df.shape[0]
         self.entities = None
         self.clusters = set()
@@ -144,7 +145,7 @@ class Exporter(object):
         # self.declare_entity()
         self.declare_cluster()
         self.declare_system()
-        self.declare_entity_cluster_membership()
+        self.declare_cluster_membership()
         # self.declare_entity_assertion()
         self.declare_super_edge()
 
@@ -192,9 +193,25 @@ class Exporter(object):
                 self.clusters.add(cluster)
                 cluster = self.extend_prefix(cluster)
                 proto = self.extend_prefix(proto)
-                cluster_info = CLUSTER_TEMPLATE.format(cluster,
-                                                       proto)
+                cluster_info = CLUSTER_TEMPLATE.format(cluster=cluster, proto=proto)
                 self.write(cluster_info)
+
+        # event
+        for e in self.df_event['e'].to_list():
+            cluster = e + '-cluster'
+            proto = e
+            cluster = self.extend_prefix(cluster)
+            proto = self.extend_prefix(proto)
+            cluster_info = CLUSTER_TEMPLATE.format(cluster=cluster, proto=proto)
+            self.write(cluster_info)
+        # relation
+        for e in self.df_relation['e'].to_list():
+            cluster = e + '-cluster'
+            proto = e
+            cluster = self.extend_prefix(cluster)
+            proto = self.extend_prefix(proto)
+            cluster_info = CLUSTER_TEMPLATE.format(cluster=cluster, proto=proto)
+            self.write(cluster_info)
 
     def declare_system(self):
         # manual
@@ -203,7 +220,7 @@ class Exporter(object):
         # self.write(ta1)
         self.write(ta2)
 
-    def declare_entity_cluster_membership(self):
+    def declare_cluster_membership(self):
         '''
         use the prototype entities to declare cluster membership
         '''
@@ -217,14 +234,31 @@ class Exporter(object):
                 for idx, cluster_ in enumerate(cluster):
                     cluster_ = self.extend_prefix(cluster_)
                     if self.__class__.legal_filter(cluster_, entity):
-                        membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity, confidence[idx])
+                        membership_info = MEMBERSHIP_TEMPLATE.format(cluster=cluster_, member=entity, cv=confidence[idx])
                         self.write(membership_info)
             else:
                 cluster_ = cluster
                 cluster_ = self.extend_prefix(cluster_)
                 if self.__class__.legal_filter(cluster_, entity):
-                    membership_info = MEMBERSHIP_TEMPLATE.format(cluster_, entity, confidence)
+                    membership_info = MEMBERSHIP_TEMPLATE.format(cluster=cluster_, member=entity, cv=confidence)
                     self.write(membership_info)
+
+        # event
+        for e in self.df_event['e'].to_list():
+            cluster = e + '-cluster'
+            member = e
+            cluster = self.extend_prefix(cluster)
+            member = self.extend_prefix(member)
+            membership_info = MEMBERSHIP_TEMPLATE.format(cluster=cluster, member=member, cv=1.0)
+            self.write(membership_info)
+        # relation
+        for e in self.df_relation['e'].to_list():
+            cluster = e + '-cluster'
+            member = e
+            cluster = self.extend_prefix(cluster)
+            member = self.extend_prefix(member)
+            membership_info = MEMBERSHIP_TEMPLATE.format(cluster=cluster, member=member, cv=1.0)
+            self.write(membership_info)
 
     def declare_entity_assertion(self):
         # use entity id for assertion id
@@ -241,7 +275,7 @@ class Exporter(object):
                 self.write(assertion_info)
 
     def declare_super_edge(self):
-        for idx, row in self.df_relation.iterrows():
+        for idx, row in self.df_relation_role.iterrows():
             proto1 = self.extend_prefix(row['prototype1'])
             proto2 = self.extend_prefix(row['prototype2'])
             edge_type = self.extend_prefix(row['role'])
@@ -268,8 +302,10 @@ def process():
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')):
 
         relation_role_file = infile[:-len('entity_cluster.h5')] + 'entity_cluster_relation_role.h5'
+        event_file = infile[:-len('entity_cluster.h5')] + 'event_cluster.h5'
+        relation_file = infile[:-len('entity_cluster.h5')] + 'relation_cluster.h5'
         outfile = os.path.join(output_dir, 'ta2_entity_cluster.ttl')
-        exporter = Exporter(infile, relation_role_file, outfile)
+        exporter = Exporter(infile, relation_role_file, event_file, relation_file, outfile)
         exporter.run()
 
     # merge with ta1 output

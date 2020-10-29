@@ -170,8 +170,8 @@ class Importer(object):
         ### name
         self.logger.info('creating name')
         exec_sh('kgtk filter -p ";aida:hasName,aida:textValue;" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        df_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label']).rename(
+                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path(1)), self.logger)
+        df_name = pd.read_csv(self.tmp_file_path(1), delimiter='\t', error_bad_lines=False, engine='python').drop(columns=['label']).rename(
             columns={'node1': 'e', 'node2': 'name'})
 
         def merge_names(names):

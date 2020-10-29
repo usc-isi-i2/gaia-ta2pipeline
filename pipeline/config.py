@@ -29,7 +29,7 @@ def get_config():
             'logging_level': logging.INFO,
             'num_of_processor': 4,
             'kb_to_fbid_mapping': None, #'../pipeline_test/res/kb_to_wd_mapping.json',
-            'enable_cmu_gid_patch': True,
+            'enable_cmu_gid_patch': False,
         } if not prod_mode else \
         {  # production
             'ldc_kg_dir': os.path.join(get_env_var('REPO_KB'), 'data'),
@@ -42,7 +42,7 @@ def get_config():
             'logging_level': logging.INFO,
             'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2')),
             'kb_to_fbid_mapping': get_env_var('KB_FBID_MAPPING', optional=True),
-            'enable_cmu_gid_patch': get_env_var('ENABLE_CMU_GID_PATCH', optional=False),
+            'enable_cmu_gid_patch': get_env_var('ENABLE_CMU_GID_PATCH', optional=True),
         }
 
 

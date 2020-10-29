@@ -273,12 +273,12 @@ def process():
         exporter.run()
 
     # merge with ta1 output
-    input_dir = os.path.join(config['input_dir'], config['run_name'])
+    temp_dir = os.path.join(config['temp_dir'], config['run_name'])
     output_dir = os.path.join(config['output_dir'], config['run_name'])
-    exec_sh('cat {input_dir}/*.ttl > {output_dir}/ta1.ttl'
-            .format(input_dir=input_dir, output_dir=output_dir), logger)
+    exec_sh('cat {temp_dir}/*/*.cleaned.nt > {output_dir}/ta1.ttl'
+            .format(temp_dir=temp_dir, output_dir=output_dir), logger)
     exec_sh('cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl'
-            .format(input_dir=input_dir, output_dir=output_dir), logger)
+            .format(temp_dir=temp_dir, output_dir=output_dir), logger)
     exec_sh('rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl'
             .format(output_dir=output_dir), logger)
 

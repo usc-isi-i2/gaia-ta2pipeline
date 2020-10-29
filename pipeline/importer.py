@@ -1,4 +1,3 @@
-import subprocess
 import os
 import shutil
 import json
@@ -11,11 +10,14 @@ import pandas as pd
 import pyrallel
 from config import config, get_logger
 from common import exec_sh
+import re
 
 
 ldc_kg = None
 df_wd_fb = None
 kb_to_fb_mapping = None
+
+re_cluster = re.compile(r'<.*InterchangeOntology#(clusterMember|ClusterMembership|SameAsCluster|cluster|prototype)>', re.IGNORECASE)
 
 
 class Importer(object):
@@ -33,6 +35,7 @@ class Importer(object):
         try:
 
             nt_file = os.path.join(self.temp_dir, '{}.nt'.format(self.source))
+            cleaned_nt_file = os.path.join(self.temp_dir, '{}.cleaned.nt'.format(self.source))
             kgtk_file = os.path.join(self.temp_dir, '{}.tsv'.format(self.source))
             unreified_kgtk_file = kgtk_file + '.unreified'
             entity_outfile = os.path.join(self.temp_dir, '{}.entity.h5'.format(self.source))
@@ -42,7 +45,8 @@ class Importer(object):
             relation_role_outfile = os.path.join(self.temp_dir, '{}.relation_role.h5'.format(self.source))
 
             self.convert_ttl_to_nt(self.infile, nt_file)
-            self.convert_nt_to_kgtk(nt_file, kgtk_file)
+            self.clean_nt(nt_file, cleaned_nt_file)
+            self.convert_nt_to_kgtk(cleaned_nt_file, kgtk_file)
             self.unreify_kgtk(kgtk_file, unreified_kgtk_file)
             self.create_entity_df(kgtk_file, unreified_kgtk_file, entity_outfile, self.source,
                                   ldc_kg, df_wd_fb, kb_to_fb_mapping)
@@ -114,6 +118,27 @@ class Importer(object):
         self.logger.info('converting ttl to nt')
         exec_sh('apache-jena-3.16.0/bin/riot --syntax=ttl --output=nt < {ttl} > {nt}'
                      .format(ttl=ttl_file, nt=nt_file), self.logger)
+
+    def clean_nt(self, nt_file, cleaned_nt_file):
+        self.logger.info('cleaning nt')
+
+        with open(nt_file, 'r') as fin:
+            with open(cleaned_nt_file, 'w') as fout:
+                for line in fin:
+                    line = line.strip()
+
+                    # make cmu id globally unique
+                    if config['enable_cmu_gid_patch']:
+                        line = line.replace(
+                            'http://www.lti.cs.cmu.edu/aida/opera/corpora/eval/',
+                            'http://www.lti.cs.cmu.edu/aida/opera/corpora/eval/{}-'.format(self.source)
+                        )
+
+                    # remove clusters and prototypes
+                    if re_cluster.search(line):
+                        continue
+
+                    fout.write(line + '\n')
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')

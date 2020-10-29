@@ -18,17 +18,18 @@ prod_mode = True if get_env_var('PROD', optional=True) else False
 def get_config():
     return \
         {  # development
-            'ldc_kg_dir': '../pipeline_test/ldc2019',
+            'ldc_kg_dir': '../pipeline_test/ldc2019/data', # ldc2019, LDC2020E27
             # 'wd_kg_dir': '../pipeline_test/wd',
-            'wd_to_fb_file': '../pipeline_test/df_wd_fb_20200803.csv',
+            'wd_to_fb_file': '../pipeline_test/res/df_wd_fb_20200803.csv',
             'input_dir': '../pipeline_test/input',
             'output_dir': '../pipeline_test/output',
-            'run_name': 'bbn',
+            'run_name': 'cmu-test',
             'temp_dir': '../pipeline_test/temp',
-            'namespace_file': '../pipeline_test/aida-namespaces-bbn.tsv',
+            'namespace_file': '../pipeline_test/res/aida-namespaces-cmu.tsv',
             'logging_level': logging.INFO,
-            'num_of_processor': 1,
-            'kb_to_fbid_mapping':  None, #'../pipeline_test/kb_to_wd_mapping.json',
+            'num_of_processor': 4,
+            'kb_to_fbid_mapping': None, #'../pipeline_test/res/kb_to_wd_mapping.json',
+            'enable_cmu_gid_patch': True,
         } if not prod_mode else \
         {  # production
             'ldc_kg_dir': os.path.join(get_env_var('REPO_KB'), 'data'),
@@ -41,6 +42,7 @@ def get_config():
             'logging_level': logging.INFO,
             'num_of_processor': int(get_env_var('NUM_PROC', optional=True, default='2')),
             'kb_to_fbid_mapping': get_env_var('KB_FBID_MAPPING', optional=True),
+            'enable_cmu_gid_patch': get_env_var('ENABLE_CMU_GID_PATCH', optional=False),
         }
 
 

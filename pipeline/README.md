@@ -16,6 +16,7 @@ Environment variables:
 - `INPUT`: Input directory.
 - `OUTPUT`: Output directory.
 - `TEMP` (optional): Temp directory.
+- `LOGGING` (optional): It can be DEBUG, INFO, WARNING, ERROR.  
 - `REPO_KB`: The path of LDC REFKB.
 - `RUN_NAME`: The name of the sub directory to run in `INPUT`. TA1 ttl files should be placed here.
 - `NUM_PROC` : The number of processors to use.

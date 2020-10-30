@@ -366,7 +366,7 @@ class Importer(object):
                 fbid = []
                 fbid_score_avg = []
                 fbid_score_max = []
-                if not target:
+                if not target['target']:
                     continue
                 for t in target['target']:
                     target_id = extract_target_id(t)

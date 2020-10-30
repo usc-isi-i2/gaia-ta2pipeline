@@ -301,6 +301,7 @@ class Importer(object):
                     df_target.loc[idx_g]['target'] = target
                     df_target.loc[idx_g]['target_name'] = target_name
                     df_target.loc[idx_g]['target_score'] = target_score
+        df_target = df_target.astype('object')
 
         ### freebase id
         self.logger.info('creating freebase')
@@ -561,8 +562,8 @@ class Importer(object):
         self.logger.info('creating name')
         exec_sh('kgtk filter -p ";skos:prefLabel;" {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['label'])\
-            .rename(columns={'node1': 'e', 'node2': 'name'})
+        df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)\
+            .drop(columns=['label']).rename(columns={'node1': 'e', 'node2': 'name'})
 
         # ### informative justification
         # self.logger.info('creating informative justification')
@@ -686,6 +687,7 @@ class Importer(object):
             infojust_hierarchy_dict['informative_justification'].append(k)
             infojust_hierarchy_dict['infojust_extended'].append(tuple(v))
         df_infojust_extended = pd.DataFrame(infojust_hierarchy_dict)
+        df_infojust_extended = df_infojust_extended.astype('object')
 
         ### merge
         df_relation_complete = pd.merge(df_relation, df_relation_type, how='left')

@@ -338,6 +338,7 @@ def process():
     df_event = df_event.drop_duplicates(subset=['e'], keep='last')
     df_relation = df_relation.drop_duplicates()
     df_relation_role = df_relation_role.drop_duplicates()
+    logger.info('Read in {} entities, {} events, {} relations'.format(len(df_entity), len(df_event), len(df_relation)))
 
     ### filtering
     logger.info('filtering out some entity types')
@@ -521,7 +522,7 @@ def process():
         relation_role[v['relation']].append((v['entity'], v['role']))
     for k, v in relation_role.items():
         if len(v) != 2:
-            logger.error('Ignoring an incorrect relation: ' + k + ' ' + str(v))
+            logger.warning('Ignoring an incorrect relation: ' + k + ' ' + str(v))
             continue
         r1, r1_role = v[0]
         r2, r2_role = v[1]

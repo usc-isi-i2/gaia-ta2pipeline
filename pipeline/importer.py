@@ -179,6 +179,7 @@ class Importer(object):
                 .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_entity = pd.read_csv(self.tmp_file_path(), delimiter='\t')
         df_entity = pd.DataFrame({'e': df_entity['node1']})
+        self.logger.info('{} entities'.format(len(df_entity)))
 
         ### name
         self.logger.info('creating name')
@@ -565,6 +566,7 @@ class Importer(object):
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label'])\
             .rename(columns={'node1': 'e'})
+        self.logger.info('{} events'.format(len(df_event)))
 
         ### type
         self.logger.info('creating type')
@@ -662,6 +664,7 @@ class Importer(object):
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_relation = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label']).rename(
             columns={'node1': 'e'})
+        self.logger.info('{} relations'.format(len(df_relation)))
 
         ### type
         self.logger.info('creating type')

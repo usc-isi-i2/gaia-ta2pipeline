@@ -17,7 +17,7 @@ ldc_kg = None
 df_wd_fb = None
 kb_to_fb_mapping = None
 
-re_cluster = re.compile(r'<.*InterchangeOntology#(clusterMember|ClusterMembership|SameAsCluster|cluster|prototype)>', re.IGNORECASE)
+re_cluster = re.compile(r'<.*InterchangeOntology#(clusterMember|ClusterMembership|SameAsCluster|cluster|prototype)>')
 
 
 class Importer(object):
@@ -122,6 +122,9 @@ class Importer(object):
     def clean_nt(self, nt_file, cleaned_nt_file):
         self.logger.info('cleaning nt')
 
+        cluster_count = 0
+        proto_count = 0
+        member_count = 0
         with open(nt_file, 'r') as fin:
             with open(cleaned_nt_file, 'w') as fout:
                 for line in fin:
@@ -135,10 +138,20 @@ class Importer(object):
                         )
 
                     # remove clusters and prototypes
-                    if re_cluster.search(line):
+                    m = re_cluster.search(line)
+                    if m:
+                        if m.group(1) == 'SameAsCluster':
+                            cluster_count += 1
+                        elif m.group(1) == 'ClusterMembership':
+                            member_count += 1
+                        elif m.group(1) == 'prototype':
+                            proto_count += 1
                         continue
 
                     fout.write(line + '\n')
+
+        self.logger.info('Cluster statistical information in TA1 output: {} clusters, {} prototypes, {} cluster members'
+                         .format(cluster_count, proto_count, member_count))
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')
@@ -838,6 +851,35 @@ def process():
     pp.task_done()
     pp.join()
     logger.info('all tasks are finished')
+
+    # integrity check
+    logger.info('checking file integrity')
+    all_ta1_files = set()
+    all_ta2_nt_files = set()
+    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl')):
+        source = os.path.basename(infile).split('.')[0]
+        all_ta1_files.add(source)
+    for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.cleaned.nt')):
+        source = os.path.basename(infile).split('.')[0]
+        all_ta2_nt_files.add(source)
+        fn = os.path.join(config['temp_dir'], config['run_name'], source, source)
+        if not os.path.exists(fn + '.tsv'):
+            logger.error('Incorrect KGTK file: {}'.format(source))
+        if not os.path.exists(fn + '.entity.h5'):
+            logger.error('Incorrect entity df: {}'.format(source))
+        if not os.path.exists(fn + '.event.h5'):
+            logger.error('Incorrect event df: {}'.format(source))
+        if not os.path.exists(fn + '.relation.h5'):
+            logger.error('Incorrect relation df: {}'.format(source))
+        if not os.path.exists(fn + '.event_role.h5'):
+            logger.error('Incorrect event role df: {}'.format(source))
+        if not os.path.exists(fn + '.relation_role.h5'):
+            logger.error('Incorrect relation role df: {}'.format(source))
+    ta2_missing = all_ta1_files - all_ta2_nt_files
+    if len(ta2_missing) > 0:
+        for source in ta2_missing:
+            logger.error('{} is not parsed'.format(source))
+    logger.info('integrity check complete')
 
 
 def generate_kb_to_wd_mapping(run_name, outfile):

@@ -18,6 +18,7 @@ df_wd_fb = None
 kb_to_fb_mapping = None
 
 re_cluster = re.compile(r'<.*InterchangeOntology#(clusterMember|ClusterMembership|SameAsCluster|cluster|prototype)>')
+re_entity = re.compile(r'<.*InterchangeOntology#(Event|Entity|Relation)>')
 
 
 class Importer(object):
@@ -27,6 +28,7 @@ class Importer(object):
         self.logger = get_logger('importer-' + source)
         self.infile = os.path.join(config['input_dir'], config['run_name'], '{}.ttl'.format(source))
         self.temp_dir = os.path.join(config['temp_dir'], config['run_name'], source)
+        self.stat_info = {}
 
     def run(self):
         global ldc_kg, df_wd_fb, kb_to_fb_mapping
@@ -122,9 +124,14 @@ class Importer(object):
     def clean_nt(self, nt_file, cleaned_nt_file):
         self.logger.info('cleaning nt')
 
-        cluster_count = 0
-        proto_count = 0
-        member_count = 0
+        self.stat_info = {
+            'cluster': 0,
+            'prototype': 0,
+            'cluster_member': 0,
+            'entity': 0,
+            'event': 0,
+            'relation': 0
+        }
         with open(nt_file, 'r') as fin:
             with open(cleaned_nt_file, 'w') as fout:
                 for line in fin:
@@ -137,21 +144,36 @@ class Importer(object):
                             'http://www.lti.cs.cmu.edu/aida/opera/corpora/eval/{}-'.format(self.source)
                         )
 
-                    # remove clusters and prototypes
+                    # statistics
+                    m = re_entity.search(line)
+                    if m:
+                        if m.group(1) == 'Entity':
+                            self.stat_info['entity'] += 1
+                        elif m.group(1) == 'Event':
+                            self.stat_info['event'] += 1
+                        elif m.group(1) == 'Relation':
+                            self.stat_info['relation'] += 1
+
+                    # statistics
+                    # in addition, remove clusters and prototypes
                     m = re_cluster.search(line)
                     if m:
                         if m.group(1) == 'SameAsCluster':
-                            cluster_count += 1
+                            self.stat_info['cluster'] += 1
                         elif m.group(1) == 'ClusterMembership':
-                            member_count += 1
+                            self.stat_info['cluster_member'] += 1
                         elif m.group(1) == 'prototype':
-                            proto_count += 1
+                            self.stat_info['prototype'] += 1
                         continue
 
                     fout.write(line + '\n')
 
-        self.logger.info('Cluster statistical information in TA1 output: {} clusters, {} prototypes, {} cluster members'
-                         .format(cluster_count, proto_count, member_count))
+        self.logger.info(
+            'TA1 {} contains {} clusters, {} prototypes, {} cluster members, {} entities, {} events, {} relations'
+            .format(self.source,
+                    self.stat_info['cluster'], self.stat_info['prototype'], self.stat_info['cluster_member'],
+                    self.stat_info['entity'], self.stat_info['event'], self.stat_info['relation']
+            ))
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')
@@ -179,7 +201,8 @@ class Importer(object):
                 .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_entity = pd.read_csv(self.tmp_file_path(), delimiter='\t')
         df_entity = pd.DataFrame({'e': df_entity['node1']})
-        self.logger.info('{} entities'.format(len(df_entity)))
+        if self.stat_info['entity'] != len(df_entity):
+            self.logger.error('TA1 has {} entities, TA2 has {} entities'.format(self.stat_info['entity'], len(df_entity)))
 
         ### name
         self.logger.info('creating name')
@@ -566,7 +589,8 @@ class Importer(object):
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label'])\
             .rename(columns={'node1': 'e'})
-        self.logger.info('{} events'.format(len(df_event)))
+        if self.stat_info['event'] != len(df_event):
+            self.logger.error('TA1 has {} events, TA2 has {} events'.format(self.stat_info['event'], len(df_event)))
 
         ### type
         self.logger.info('creating type')
@@ -664,7 +688,8 @@ class Importer(object):
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_relation = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label']).rename(
             columns={'node1': 'e'})
-        self.logger.info('{} relations'.format(len(df_relation)))
+        if self.stat_info['relation'] != len(df_relation):
+            self.logger.error('TA1 has {} relations, TA2 has {} relations'.format(self.stat_info['relation'], len(df_relation)))
 
         ### type
         self.logger.info('creating type')
@@ -881,7 +906,7 @@ def process():
     ta2_missing = all_ta1_files - all_ta2_nt_files
     if len(ta2_missing) > 0:
         for source in ta2_missing:
-            logger.error('{} is not parsed'.format(source))
+            logger.error('{} has not been parsed'.format(source))
     logger.info('integrity check complete')
 
 

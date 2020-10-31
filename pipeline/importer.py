@@ -203,6 +203,7 @@ class Importer(object):
         df_entity = pd.DataFrame({'e': df_entity['node1']})
         if self.stat_info['entity'] != len(df_entity):
             self.logger.error('TA1 has {} entities, TA2 has {} entities'.format(self.stat_info['entity'], len(df_entity)))
+        df_entity = df_entity.drop_duplicates().reset_index(drop=True)
 
         ### name
         self.logger.info('creating name')
@@ -557,28 +558,14 @@ class Importer(object):
         # df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
         df_entity_complete['source'] = source
-        df_entity_complete = df_entity_complete.reset_index(drop=True)
+        df_entity_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 
         ### export
-        if not self.validate_entity_df(df_entity_complete):
-            self.logger.error('Invalid dataframe, please check input data')
-            df_entity_complete.to_csv(output_file + '.invalid.csv')
-        else:
-            self.logger.info('exporting df')
-            # df_entity_complete.to_csv(output_file, index=False)
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                df_entity_complete.to_hdf(output_file, 'entity', mode='w', format='fixed')
-                df_entity_complete.to_csv(output_file + '.csv')
-
-    def validate_entity_df(self, df):
-        # for idx, r in df.iterrows():
-        #     pass
-        if len(df) != len(set(df['e'])):
-            self.logger.error('Detected duplicate entities')
-            return False
-
-        return True
+        self.logger.info('exporting df')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            df_entity_complete.to_hdf(output_file, 'entity', mode='w', format='fixed')
+            df_entity_complete.to_csv(output_file + '.csv')
 
     def create_event_df(self, kgtk_file, unreified_kgtk_file, output_file, source):
         self.logger.info('creating event df for ' + source)
@@ -591,6 +578,7 @@ class Importer(object):
             .rename(columns={'node1': 'e'})
         if self.stat_info['event'] != len(df_event):
             self.logger.error('TA1 has {} events, TA2 has {} events'.format(self.stat_info['event'], len(df_event)))
+        df_event = df_event.drop_duplicates().reset_index(drop=True)
 
         ### type
         self.logger.info('creating type')
@@ -639,7 +627,7 @@ class Importer(object):
         # df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
         # df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
         df_event_complete['source'] = source
-        df_event_complete = df_event_complete.reset_index(drop=True)
+        df_event_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 
         ### export
         self.logger.info('exporting df')
@@ -668,7 +656,7 @@ class Importer(object):
 
             df_event_role = df_event_role.loc[df_event_role['entity'].isin(entity_ids)]
             df_event_role = df_event_role.loc[df_event_role['event'].isin(event_ids)]
-            df_event_role = df_event_role.reset_index(drop=True)
+            df_event_role = df_event_role.drop_duplicates().reset_index(drop=True)
         except pd.errors.EmptyDataError:
             pass
 
@@ -690,6 +678,7 @@ class Importer(object):
             columns={'node1': 'e'})
         if self.stat_info['relation'] != len(df_relation):
             self.logger.error('TA1 has {} relations, TA2 has {} relations'.format(self.stat_info['relation'], len(df_relation)))
+        df_relation = df_relation.drop_duplicates().reset_index(drop=True)
 
         ### type
         self.logger.info('creating type')
@@ -737,7 +726,7 @@ class Importer(object):
         df_relation_complete = pd.merge(df_relation_complete, df_relation_infojust, how='left')
         df_relation_complete = pd.merge(df_relation_complete, df_infojust_extended, how='left')
         df_relation_complete['source'] = source
-        df_relation_complete = df_relation_complete.reset_index(drop=True)
+        df_relation_complete = df_relation_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 
         ### export
         self.logger.info('exporting df')
@@ -767,7 +756,7 @@ class Importer(object):
 
             df_relation_role = df_relation_role.loc[df_relation_role['entity'].isin(entity_ids)]
             df_relation_role = df_relation_role.loc[df_relation_role['relation'].isin(relation_ids)]
-            df_relation_role = df_relation_role.reset_index(drop=True)
+            df_relation_role = df_relation_role.drop_duplicates().reset_index(drop=True)
         except pd.errors.EmptyDataError:
             pass
 

@@ -330,15 +330,15 @@ def process():
         df_relation = df_relation.append(pd.read_hdf(relation_file))
         relation_role_file = infile[:-len('entity.h5')] + 'relation_role.h5'
         df_relation_role = df_relation_role.append(pd.read_hdf(relation_role_file))
+    logger.info('Read in {} entities, {} events, {} relations'.format(len(df_entity), len(df_event), len(df_relation)))
     df_entity = df_entity.drop_duplicates(subset=['e'], keep='last')  # cmu data has cross document entities, only keep one
     df_entity = df_entity.reset_index(drop=True)
-    logger.info('Total number of entities: %d', len(df_entity))
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
-    df_event = df_event.drop_duplicates(subset=['e'], keep='last')
-    df_relation = df_relation.drop_duplicates()
-    df_relation_role = df_relation_role.drop_duplicates()
-    logger.info('Read in {} entities, {} events, {} relations'.format(len(df_entity), len(df_event), len(df_relation)))
+    df_event = df_event.drop_duplicates(subset=['e'], keep='last').reset_index(drop=True)
+    df_relation = df_relation.drop_duplicates().reset_index(drop=True)
+    df_relation_role = df_relation_role.drop_duplicates().reset_index(drop=True)
+    logger.info('After deduplication: {} entities, {} events, {} relations'.format(len(df_entity), len(df_event), len(df_relation)))
 
     ### filtering
     logger.info('filtering out some entity types')

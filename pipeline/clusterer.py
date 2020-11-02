@@ -185,10 +185,6 @@ class Cluster(object):
         self.wd_candidate = {}
         self.name_labels = None
 
-        self.relation_role = defaultdict(list)  # (role, cluster) -> [{relation: {infojust, infojust_extended, infojust_cv}}]
-        self.relation_role_importance = {}  # (role, cluster) -> score
-        self.relation_role_compound_cv = {}  # (role, cluster) -> score
-
         self.prototype = None
         self.id_ = self.random_str(10)
         self.full_id = None
@@ -282,13 +278,6 @@ class Cluster(object):
         self.prototype = self.feature_entity_id #+ '-prototype-' + self.id_
         self.full_id = self.feature_entity_id + '-cluster-' + self.id_
 
-    def compute_relation_role(self):
-        total_conn = sum([len(v) for v in self.relation_role.values()])
-        for conn, rels in self.relation_role.items():
-            cnt = len(rels)
-            self.relation_role_importance[conn] = max(0.01, round(float(cnt) / total_conn, 2))
-            self.relation_role_compound_cv[conn] = max(0.01, round(max([rel['infojust_cv'] for rel in rels]), 2))
-
     def debug(self):
         return {
             'wd_id': self.wd_id,
@@ -314,6 +303,7 @@ def process():
 
     df_entity = pd.DataFrame()
     df_event = pd.DataFrame()
+    df_event_role = pd.DataFrame()
     df_relation = pd.DataFrame()
     df_relation_role = pd.DataFrame()
 
@@ -325,6 +315,8 @@ def process():
         # event
         event_file = infile[:-len('entity.h5')] + 'event.h5'
         df_event = df_event.append(pd.read_hdf(event_file))
+        event_role_file = infile[:-len('entity.h5')] + 'event_role.h5'
+        df_event_role = df_event_role.append(pd.read_hdf(event_role_file))
         # relation
         relation_file = infile[:-len('entity.h5')] + 'relation.h5'
         df_relation = df_relation.append(pd.read_hdf(relation_file))
@@ -336,6 +328,7 @@ def process():
     df_entity['type'] = df_entity['type'].apply(lambda x: x[0])  # only pick the fist type (compatible with old pipeline)
     df_entity_ori = df_entity.copy()
     df_event = df_event.drop_duplicates(subset=['e'], keep='last').reset_index(drop=True)
+    df_event_role = df_event_role.drop_duplicates().reset_index(drop=True)
     df_relation = df_relation.drop_duplicates().reset_index(drop=True)
     df_relation_role = df_relation_role.drop_duplicates().reset_index(drop=True)
     logger.info('After deduplication: {} entities, {} events, {} relations'.format(len(df_entity), len(df_event), len(df_relation)))
@@ -509,29 +502,27 @@ def process():
     for c in final_clusters:
         c.generate()
 
-    ### relation
-    relation = {}
-    for idx, v in df_relation.iterrows():
-        relation[v['e']] = {
-            'infojust': v['informative_justification'],
-            'infojust_extended': v['infojust_extended'],
-            'infojust_cv': v['infojust_confidence']
-        }
-    relation_role = defaultdict(list)
-    for k, v in df_relation_role.iterrows():
-        relation_role[v['relation']].append((v['entity'], v['role']))
-    for k, v in relation_role.items():
-        if len(v) != 2:
-            logger.warning('Ignoring an incorrect relation: ' + k + ' ' + str(v))
-            continue
-        r1, r1_role = v[0]
-        r2, r2_role = v[1]
-        c1 = entity_to_cluster[r1]
-        c2 = entity_to_cluster[r2]
-        c1.relation_role[(r1_role, c2)].append(relation[k])
-        c2.relation_role[(r2_role, c1)].append(relation[k])
-    for e in final_clusters:
-        e.compute_relation_role()
+    ### event and relation cluster
+    # these clusters URIs will be {event/relation uri}-cluster
+    # prototype URIs hence will be just {event/relation uri}
+
+    ### event role
+    event_role_se_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'just': []}
+    for idx, v in df_event_role.iterrows():
+        event_role_se_dict['prototype1'].append(v['event'])
+        event_role_se_dict['prototype2'].append(entity_to_cluster[v['entity']].prototype)
+        event_role_se_dict['role'].append(v['role'])
+        event_role_se_dict['just'].append(v['just'])
+    df_event_role_se = pd.DataFrame.from_dict(event_role_se_dict)
+
+    ### relation role
+    relation_role_se_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'just': []}
+    for idx, v in df_relation_role.iterrows():
+        relation_role_se_dict['prototype1'].append(v['relation'])
+        relation_role_se_dict['prototype2'].append(entity_to_cluster[v['entity']].prototype)
+        relation_role_se_dict['role'].append(v['role'])
+        relation_role_se_dict['just'].append(v['just'])
+    df_relation_role_se = pd.DataFrame.from_dict(relation_role_se_dict)
 
     ### export
     logger.info('exporting clusters')
@@ -571,44 +562,30 @@ def process():
     df_complete_entity_clusters = df_entity_cluster.append(df_prototypes)
     df_complete_entity_clusters.reset_index(drop=True)
 
-    logger.info('creating relation role dataframe')
-    cluster_relation_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'importance': [],
-                             'infojust': [], 'compound_cv': []}
-    for c1 in final_clusters:
-        proto1 = c1.prototype
-        for conn, importance in c1.relation_role_importance.items():
-            role, c2 = conn
-            proto2 = c2.prototype
-            cluster_relation_dict['prototype1'].append(proto1)
-            cluster_relation_dict['prototype2'].append(proto2)
-            cluster_relation_dict['role'].append(role)
-            cluster_relation_dict['importance'].append(importance)
-
-            compound_cv = c1.relation_role_compound_cv[conn]
-            cluster_relation_dict['compound_cv'].append(compound_cv)
-            infojust = tuple(set([rr for r in c1.relation_role[conn] for rr in r['infojust_extended']]))
-            cluster_relation_dict['infojust'].append(infojust)
-
-    df_entity_cluster_relation_role = pd.DataFrame.from_dict(cluster_relation_dict)
-
     logger.info('writing to disk')
-    output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
+    entity_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        df_complete_entity_clusters.to_hdf(output_file + '.h5', 'entity', mode='w', format='fixed')
-        df_complete_entity_clusters.to_csv(output_file + '.h5.csv')
-    with open(output_file + '.cluster.jl', 'w') as f:
+        df_complete_entity_clusters.to_hdf(entity_cluster_output_file + '.h5', 'entity', mode='w', format='fixed')
+        df_complete_entity_clusters.to_csv(entity_cluster_output_file + '.h5.csv')
+    with open(entity_cluster_output_file + '.cluster.jl', 'w') as f:
         for c in final_clusters:
             f.write(json.dumps(c.debug()) + '\n')
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        event_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event_cluster.h5')
-        df_event.to_hdf(event_output_file, 'event')
-        relation_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation_cluster.h5')
-        df_relation.to_hdf(relation_output_file, 'relation')
-        df_entity_cluster_relation_role.to_hdf(output_file + '_relation_role.h5', 'relation_role', mode='w', format='fixed')
-        df_entity_cluster_relation_role.to_csv(output_file + '_relation_role.h5.csv')
+        # event
+        event_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event_cluster.h5')
+        df_event.to_hdf(event_cluster_output_file, 'event')
+        event_role_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event_role.h5')
+        df_event_role_se.to_hdf(event_role_output_file, 'event_role')
+        df_event_role_se.to_csv(event_role_output_file + '.csv')
+        # relation
+        relation_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation_cluster.h5')
+        df_relation.to_hdf(relation_cluster_output_file, 'relation')
+        relation_role_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation_role.h5')
+        df_relation_role_se.to_hdf(relation_role_output_file, 'relation_role', mode='w', format='fixed')
+        df_relation_role_se.to_csv(relation_role_output_file + '.csv')
 
 
 if __name__ == '__main__':

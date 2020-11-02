@@ -59,20 +59,10 @@ MEMBERSHIP_TEMPLATE = """[ a                   aida:ClusterMembership ;
 
 SUPER_EDGE_TEMPLATE = """[ 
     a                   rdf:Statement ;
-    rdf:object          {proto2} ;
-    rdf:predicate       {edge_type} ;
     rdf:subject         {proto1} ;
-    aida:importance     "{edge_iv}"^^xsd:double ;
-    aida:justifiedBy  [ 
-        a                   aida:CompoundJustification ;
-        aida:confidence [ 
-            a                       aida:Confidence ;
-            aida:confidenceValue    "{compound_cv}"^^xsd:double ;
-            aida:system             gaia:TA2
-        ] ;
-        {compound_infojust}
-        aida:system     gaia:TA2
-    ] ;
+    rdf:predicate       {edge_type} ;
+    rdf:object          {proto2} ;
+    aida:justifiedBy    {just} ;
     aida:system         gaia:TA2 
 ] .\n"""
 
@@ -101,16 +91,16 @@ ESSENTIAL_COLUMNS_RELATION = [
 
 
 class Exporter(object):
-    def __init__(self, entity, relation_role, event, relation, outfile):
+    def __init__(self, entity, event, event_role, relation, relation_role, outfile):
 
         df = pd.read_hdf(entity)
-        df_relation_role = pd.read_hdf(relation_role)
         self.fp = open(outfile, "w")
         self.df = df[df["synthetic"] == False][ESSENTIAL_COLUMNS]
         self.proto_df = df[df["synthetic"] == True][ESSENTIAL_COLUMNS]
-        self.df_relation_role = df_relation_role[ESSENTIAL_COLUMNS_RELATION]
         self.df_event = pd.read_hdf(event)
+        self.df_event_role = pd.read_hdf(event_role)
         self.df_relation = pd.read_hdf(relation)
+        self.df_relation_role = pd.read_hdf(relation_role)
         self.n = self.df.shape[0]
         self.entities = None
         self.clusters = set()
@@ -279,16 +269,20 @@ class Exporter(object):
             proto1 = self.extend_prefix(row['prototype1'])
             proto2 = self.extend_prefix(row['prototype2'])
             edge_type = self.extend_prefix(row['role'])
-            edge_iv = row['importance']
-            compound_cv = row['compound_cv']
+            just = row['just']
 
-            super_edge_infojust_info = ''
-            for ij in row['infojust']:
-                ij = self.extend_prefix(ij)
-                super_edge_infojust_info += SUPER_EDGE_COMPOUND_JUSTIFICATION.format(infojust=ij)
             super_edge_info = SUPER_EDGE_TEMPLATE.format(
-                proto1=proto1, proto2=proto2, edge_type=edge_type, edge_iv=edge_iv,
-                compound_infojust=super_edge_infojust_info, compound_cv=compound_cv)
+                proto1=proto1, proto2=proto2, edge_type=edge_type, just=just)
+            self.write(super_edge_info)
+
+        for idx, row in self.df_event_role.iterrows():
+            proto1 = self.extend_prefix(row['prototype1'])
+            proto2 = self.extend_prefix(row['prototype2'])
+            edge_type = self.extend_prefix(row['role'])
+            just = row['just']
+
+            super_edge_info = SUPER_EDGE_TEMPLATE.format(
+                proto1=proto1, proto2=proto2, edge_type=edge_type, just=just)
             self.write(super_edge_info)
 
 
@@ -301,11 +295,12 @@ def process():
 
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster.h5')):
 
-        relation_role_file = infile[:-len('entity_cluster.h5')] + 'entity_cluster_relation_role.h5'
         event_file = infile[:-len('entity_cluster.h5')] + 'event_cluster.h5'
+        event_role_file = infile[:-len('entity_cluster.h5')] + 'event_role.h5'
         relation_file = infile[:-len('entity_cluster.h5')] + 'relation_cluster.h5'
+        relation_role_file = infile[:-len('entity_cluster.h5')] + 'relation_role.h5'
         outfile = os.path.join(output_dir, 'ta2_entity_cluster.ttl')
-        exporter = Exporter(infile, relation_role_file, event_file, relation_file, outfile)
+        exporter = Exporter(infile, event_file, event_role_file, relation_file, relation_role_file, outfile)
         exporter.run()
 
     # merge with ta1 output

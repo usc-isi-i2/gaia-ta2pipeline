@@ -594,38 +594,8 @@ class Importer(object):
         df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)\
             .drop(columns=['label']).rename(columns={'node1': 'e', 'node2': 'name'})
 
-        # ### informative justification
-        # self.logger.info('creating informative justification')
-        # df_event_infojust = self.predicate_path(unreified_kgtk_file,
-        #                                    'aida:informativeJustification/aida:confidence/aida:confidenceValue',
-        #                                    retain_intermediate=True) \
-        #     .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
-        #     .drop(columns=['inter_2'])
-        # df_event_infojust = pd.merge(df_event, df_event_infojust, left_on='e',
-        #                              right_on='e')  # .drop(columns=['label', 'id'])
-        #
-        # ### justified by
-        # self.logger.info('creating justified by')
-        # df_event_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
-        #                                retain_intermediate=True) \
-        #     .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'just_confidence'}) \
-        #     .drop(columns=['inter_2'])
-        # df_event_just = pd.merge(df_event, df_event_just, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
-        #
-        # def merge_event_just(v):
-        #     if len(v.index > 0):
-        #         confidence = tuple(v['just_confidence'].to_list())
-        #         justified_by = tuple(v['justified_by'].to_list())
-        #         return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
-        #
-        # df_event_just = df_event_just.groupby('e')[['just_confidence', 'justified_by']].apply(
-        #     merge_event_just).reset_index()
-
-
         ### merge
         df_event_complete = pd.merge(df_event, df_event_type, how='left')
-        # df_event_complete = pd.merge(df_event_complete, df_event_infojust, how='left')
-        # df_event_complete = pd.merge(df_event_complete, df_event_just, how='left')
         df_event_complete['source'] = source
         df_event_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 
@@ -643,6 +613,7 @@ class Importer(object):
         exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_event_role = pd.DataFrame(columns=['event', 'role', 'entity'])
+
         try:
             # entity ids and relation ids
             df_entity = pd.read_hdf(entity_file)['e']
@@ -651,12 +622,21 @@ class Importer(object):
             event_ids = set([v for v in df_event.to_dict().values()])
 
             df_event_role = pd.read_csv(self.tmp_file_path(1),
-                delimiter='\t', index_col=False, header=None, names=['event', 'role', 'entity'])
+                delimiter='\t', index_col=False, header=None, names=['event', 'role', 'entity', 'statement'])
             df_event_role['source'] = source
 
             df_event_role = df_event_role.loc[df_event_role['entity'].isin(entity_ids)]
             df_event_role = df_event_role.loc[df_event_role['event'].isin(event_ids)]
             df_event_role = df_event_role.drop_duplicates().reset_index(drop=True)
+
+            # justified by
+            exec_sh('kgtk filter -p ";aida:justifiedBy;" {kgtk_file} > {tmp_file}'
+                    .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+            df_just = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+            just_dict = {v['node1']: v['node2'] for _, v in df_just.iterrows()}
+            df_event_role['just'] = None
+            df_event_role['just'] = df_event_role['statement'].apply(
+                lambda x: '_:{}'.format(just_dict[x].split(':')[1]))
         except pd.errors.EmptyDataError:
             pass
 
@@ -687,44 +667,8 @@ class Importer(object):
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_relation_type = pd.merge(df_relation, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
 
-        ### info just
-        self.logger.info('creating informative justification')
-        df_relation_infojust = self.predicate_path(unreified_kgtk_file,
-                                              'aida:informativeJustification/aida:confidence/aida:confidenceValue',
-                                              retain_intermediate=True) \
-            .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
-            .drop(columns=['inter_2'])
-        df_relation_infojust = pd.merge(df_relation, df_relation_infojust, left_on='e',
-                                        right_on='e')  # .drop(columns=['label', 'id'])
-
-        infojust_hierarchy = defaultdict(set)
-        # valid justification types: https://github.com/NextCenturyCorporation/AIDA-Interchange-Format/blob/ef8beffc50d05466be730fd3c67330d6dfbdeaf3/java/src/main/resources/com/ncc/aif/aida_ontology.shacl#L826-L841
-        exec_sh('kgtk filter -p ";rdf:type;aida:TextJustification,aida:AudioJustification,aida:ImageJustification,aida:KeyFrameVideoJustification,aida:ShotVideoJustification,aida:VideoJustification" {kgtk_file} > {tmp_file}'
-                .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        df_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t')
-        for ij in df_tmp['node1'].values:
-            infojust_hierarchy[ij].add(ij)
-        # compound justification
-        exec_sh('kgtk filter -p ";aida:containedJustification;" {kgtk_file} > {tmp_file1}'
-            .format(kgtk_file=unreified_kgtk_file, tmp_file1=self.tmp_file_path(1)), self.logger)
-        df_tmp1 = pd.read_csv(self.tmp_file_path(1), delimiter='\t')
-        # df_tmp1 = pd.merge(df_tmp1, df_tmp, left_on='node2', right_on='node1')
-        for idx, v in df_tmp1[['node1', 'node2']].iterrows():
-            compij = v['node1']
-            ij = v['node2']
-            infojust_hierarchy[compij].add(ij)
-
-        infojust_hierarchy_dict = {'informative_justification': [], 'infojust_extended': []}
-        for k, v in infojust_hierarchy.items():
-            infojust_hierarchy_dict['informative_justification'].append(k)
-            infojust_hierarchy_dict['infojust_extended'].append(tuple(v))
-        df_infojust_extended = pd.DataFrame(infojust_hierarchy_dict)
-        df_infojust_extended = df_infojust_extended.astype('object')
-
         ### merge
         df_relation_complete = pd.merge(df_relation, df_relation_type, how='left')
-        df_relation_complete = pd.merge(df_relation_complete, df_relation_infojust, how='left')
-        df_relation_complete = pd.merge(df_relation_complete, df_infojust_extended, how='left')
         df_relation_complete['source'] = source
         df_relation_complete = df_relation_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 
@@ -737,11 +681,14 @@ class Importer(object):
 
     def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source, entity_file, relation_file):
         self.logger.info('creating relation role df for ' + source)
+
+        # role
         exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_relation_role = pd.DataFrame(columns=['relation', 'role', 'entity'])
+
         try:
             # entity ids and relation ids
             df_entity = pd.read_hdf(entity_file)['e']
@@ -751,12 +698,21 @@ class Importer(object):
 
             # read relations
             df_relation_role = pd.read_csv(self.tmp_file_path(1),
-                delimiter='\t', index_col=False, header=None, names=['relation', 'role', 'entity'])
+                delimiter='\t', index_col=False, header=None, names=['relation', 'role', 'entity', 'statement'])
             df_relation_role['source'] = source
 
             df_relation_role = df_relation_role.loc[df_relation_role['entity'].isin(entity_ids)]
             df_relation_role = df_relation_role.loc[df_relation_role['relation'].isin(relation_ids)]
             df_relation_role = df_relation_role.drop_duplicates().reset_index(drop=True)
+
+            # justified by
+            exec_sh('kgtk filter -p ";aida:justifiedBy;" {kgtk_file} > {tmp_file}'
+                    .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
+            df_just = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+            just_dict = {v['node1']: v['node2'] for _, v in df_just.iterrows()}
+            df_relation_role['just'] = None
+            df_relation_role['just'] = df_relation_role['statement'].apply(
+                lambda x: '_:{}'.format(just_dict[x].split(':')[1]))
         except pd.errors.EmptyDataError:
             pass
 
@@ -896,7 +852,7 @@ def process():
     if len(ta2_missing) > 0:
         for source in ta2_missing:
             logger.error('{} has not been parsed'.format(source))
-    logger.info('integrity check complete')
+    logger.info('integrity check completed')
 
 
 def generate_kb_to_wd_mapping(run_name, outfile):

@@ -57,7 +57,7 @@ class Importer(object):
                                       entity_outfile, event_outfile)
             self.create_relation_df(kgtk_file, unreified_kgtk_file, relation_outfile, self.source)
             self.create_relation_role_df(kgtk_file, unreified_kgtk_file, relation_role_outfile, self.source,
-                                         entity_outfile, relation_outfile)
+                                         entity_outfile, event_outfile, relation_outfile)
 
         except:
             self.logger.exception('Exception caught in Importer.run()')
@@ -90,7 +90,7 @@ class Importer(object):
 
         # first predicate
         tmp_str = ';{};'.format(all_p[0])
-        exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
+        exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                 .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
         pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
 
@@ -99,7 +99,7 @@ class Importer(object):
         for idx in range(1, len(all_p)):
             p = all_p[idx]
             tmp_str = ';{};'.format(p)
-            exec_sh('kgtk filter -p "{tmp_str}" {infile} > {tmp_file}'
+            exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                     .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
             pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
 
@@ -197,7 +197,7 @@ class Importer(object):
 
         ### id
         self.logger.info('creating id')
-        exec_sh('kgtk filter -p ";rdf:type;aida:Entity" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;aida:Entity" -i {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_entity = pd.read_csv(self.tmp_file_path(), delimiter='\t')
         df_entity = pd.DataFrame({'e': df_entity['node1']})
@@ -207,7 +207,7 @@ class Importer(object):
 
         ### name
         self.logger.info('creating name')
-        exec_sh('kgtk filter -p ";aida:hasName,aida:textValue;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";aida:hasName,aida:textValue;" -i {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path(1)), self.logger)
         df_name = pd.read_csv(self.tmp_file_path(1), delimiter='\t', error_bad_lines=False, quoting=csv.QUOTE_NONE, doublequote=False).drop(columns=['label']).rename(
             columns={'node1': 'e', 'node2': 'name'})
@@ -343,15 +343,15 @@ class Importer(object):
 
         ### freebase id
         self.logger.info('creating freebase')
-        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" -i {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        exec_sh('kgtk filter -p ";;uiuc:EDL_Freebase" {tmp_file} > {tmp_file1}'
+        exec_sh('kgtk filter -p ";;uiuc:EDL_Freebase" -i {tmp_file} > {tmp_file1}'
                 .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         exec_sh('kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 -i {tmp_file} | kgtk filter -p ";aida:jsonContent;" > {tmp_file2}'
                 .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)), self.logger)
         exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
-        exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
+        exec_sh('kgtk filter -p ";aida:privateData;" -i {kgtk_file} | grep "entity:" >> {tmp_file3}'
                 .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(3), delimiter='\t')
         df_tmp2 = pd.read_csv(self.tmp_file_path(2), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
@@ -424,16 +424,16 @@ class Importer(object):
 
         ### embedding vector
         self.logger.info('creating embedding vector')
-        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";aida:privateData,aida:jsonContent,aida:system;" -i {kgtk_file} > {tmp_file}'
                 .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
-        exec_sh('kgtk filter -p ";;uiuc:entity_representations" {tmp_file} > {tmp_file1}'
+        exec_sh('kgtk filter -p ";;uiuc:entity_representations" -i {tmp_file} > {tmp_file1}'
                 .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         exec_sh('''kgtk ifexists --filter-on {tmp_file1} --input-keys node1 --filter-keys node1 \
     -i {tmp_file} | kgtk filter -p ';aida:jsonContent;' > {tmp_file2}'''
                 .format(tmp_file1=self.tmp_file_path(1), tmp_file=self.tmp_file_path(), tmp_file2=self.tmp_file_path(2)), self.logger)
         exec_sh('head -n 1 {kgtk_file} > {tmp_file3}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
-        exec_sh('kgtk filter -p ";aida:privateData;" {kgtk_file} | grep "entity:" >> {tmp_file3}'
+        exec_sh('kgtk filter -p ";aida:privateData;" -i {kgtk_file} | grep "entity:" >> {tmp_file3}'
                 .format(kgtk_file=kgtk_file, tmp_file3=self.tmp_file_path(3)), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(3), delimiter='\t')
         df_tmp2 = pd.read_csv(self.tmp_file_path(2), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
@@ -443,7 +443,7 @@ class Importer(object):
 
         ### type
         self.logger.info('creating type')
-        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Entity" > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;" -i {kgtk_file} | kgtk filter --invert -p ";;aida:Entity" > {tmp_file}'
                 .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_type = pd.merge(df_entity, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
@@ -524,16 +524,32 @@ class Importer(object):
             df_wd.loc[idx].at['wikidata_alias_ru'] = tuple([l.get('ru') for l in aliases])
             df_wd.loc[idx].at['wikidata_alias_uk'] = tuple([l.get('uk') for l in aliases])
 
-        # ### informative justification
+        ### informative justification
         # self.logger.info('creating informative justification')
+        # df_ij_start = self.predicate_path(unreified_kgtk_file, 'aida:informativeJustification/aida:startOffset')\
+        #     .rename(columns={'node1': 'e', 'node2': 'start'})
+        # df_ij_end = self.predicate_path(unreified_kgtk_file, 'aida:informativeJustification/aida:endOffsetInclusive')\
+        #     .rename(columns={'node1': 'e', 'node2': 'end'})
+        # df_ij = pd.merge(df_ij_start, df_ij_end, left_on='e', right_on='e')
+        # df_ij['offset'] = df_ij[['start', 'end']].apply(tuple, axis=1)
+        # df_ij = df_ij.drop(columns=['start', 'end'])
+
+        # def merge_ij(v):
+        #     if len(v.index > 0):
+        #         offset = tuple(v['offset'].to_list())
+        #         return pd.Series({'offset': offset})
+        # df_ij = df_ij.groupby('e')[['offset']].apply(merge_ij).reset_index()
+        # print(df_ij)
+        # exit()
+
         # df_infojust = self.predicate_path(unreified_kgtk_file,
         #     'aida:informativeJustification/aida:confidence/aida:confidenceValue',
         #     retain_intermediate=True) \
         #     .rename(columns={'node1': 'e', 'inter_1': 'informative_justification', 'node2': 'infojust_confidence'}) \
         #     .drop(columns=['inter_2'])
         # df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')  # .drop(columns=['label', 'id'])
-        #
-        # ### justified by
+
+        ### justified by
         # self.logger.info('creating justified by')
         # df_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:confidence/aida:confidenceValue',
         #                          retain_intermediate=True) \
@@ -555,6 +571,7 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity_complete, df_type, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_target, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_wd, how='left')
+        # df_entity_complete = pd.merge(df_entity_complete, df_ij, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
         df_entity_complete['source'] = source
@@ -572,7 +589,7 @@ class Importer(object):
 
         ### id
         self.logger.info('creating id')
-        exec_sh('kgtk filter -p ";rdf:type;aida:Event" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;aida:Event" -i {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label'])\
             .rename(columns={'node1': 'e'})
@@ -582,14 +599,14 @@ class Importer(object):
 
         ### type
         self.logger.info('creating type')
-        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Event" > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;" -i {kgtk_file} | kgtk filter --invert -p ";;aida:Event" > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_event_type = pd.merge(df_event, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
 
         ### name
         self.logger.info('creating name')
-        exec_sh('kgtk filter -p ";skos:prefLabel;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";skos:prefLabel;" -i {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_event_name = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)\
             .drop(columns=['label']).rename(columns={'node1': 'e', 'node2': 'name'})
@@ -608,7 +625,7 @@ class Importer(object):
 
     def create_event_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source, entity_file, event_file):
         self.logger.info('creating event role df for ' + source)
-        exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter --invert -p ";rdf:type;" -i {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
@@ -630,7 +647,7 @@ class Importer(object):
             df_event_role = df_event_role.drop_duplicates().reset_index(drop=True)
 
             # justified by
-            exec_sh('kgtk filter -p ";aida:justifiedBy;" {kgtk_file} > {tmp_file}'
+            exec_sh('kgtk filter -p ";aida:justifiedBy;" -i {kgtk_file} > {tmp_file}'
                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
             df_just = pd.read_csv(self.tmp_file_path(), delimiter='\t')
             just_dict = {v['node1']: v['node2'] for _, v in df_just.iterrows()}
@@ -652,7 +669,7 @@ class Importer(object):
 
         ### id
         self.logger.info('creating id')
-        exec_sh('kgtk filter -p ";rdf:type;aida:Relation" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;aida:Relation" -i {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_relation = pd.read_csv(self.tmp_file_path(), delimiter='\t').drop(columns=['node2', 'label']).rename(
             columns={'node1': 'e'})
@@ -662,7 +679,7 @@ class Importer(object):
 
         ### type
         self.logger.info('creating type')
-        exec_sh('kgtk filter -p ";rdf:type;" {kgtk_file} | kgtk filter --invert -p ";;aida:Relation" > {tmp_file}'
+        exec_sh('kgtk filter -p ";rdf:type;" -i {kgtk_file} | kgtk filter --invert -p ";;aida:Relation" > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         df_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t').rename(columns={'node1': 'e', 'node2': 'type'})
         df_relation_type = pd.merge(df_relation, df_tmp1, left_on='e', right_on='e').drop(columns=['label', 'id'])
@@ -679,34 +696,41 @@ class Importer(object):
             df_relation_complete.to_hdf(output_file, 'relation', mode='w', format='fixed')
             df_relation_complete.to_csv(output_file + '.csv')
 
-    def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source, entity_file, relation_file):
+    def create_relation_role_df(self, kgtk_file, unreified_kgtk_file, output_file, source,
+                                entity_file, event_file, relation_file):
         self.logger.info('creating relation role df for ' + source)
 
         # role
-        exec_sh('kgtk filter --invert -p ";rdf:type;" {kgtk_file} > {tmp_file}'
+        exec_sh('kgtk filter --invert -p ";rdf:type;" -i {kgtk_file} > {tmp_file}'
                      .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
         exec_sh("awk -F'\t' '$2 ~ /^ldcOnt:/' {tmp_file} > {tmp_file1}"
                      .format(tmp_file=self.tmp_file_path(), tmp_file1=self.tmp_file_path(1)), self.logger)
         df_relation_role = pd.DataFrame(columns=['relation', 'role', 'entity'])
 
         try:
-            # entity ids and relation ids
+            # entity, event and relation ids
             df_entity = pd.read_hdf(entity_file)['e']
             entity_ids = set([v for v in df_entity.to_dict().values()])
+            df_event = pd.read_hdf(event_file)['e']
+            event_ids = set([v for v in df_event.to_dict().values()])
             df_relation = pd.read_hdf(relation_file)['e']
             relation_ids = set([v for v in df_relation.to_dict().values()])
 
             # read relations
             df_relation_role = pd.read_csv(self.tmp_file_path(1),
-                delimiter='\t', index_col=False, header=None, names=['relation', 'role', 'entity', 'statement'])
+                delimiter='\t', index_col=False, header=None, names=['relation', 'role', 'e', 'statement'])
             df_relation_role['source'] = source
 
-            df_relation_role = df_relation_role.loc[df_relation_role['entity'].isin(entity_ids)]
             df_relation_role = df_relation_role.loc[df_relation_role['relation'].isin(relation_ids)]
+            df_relation_role_entity = df_relation_role.loc[df_relation_role['e'].isin(entity_ids)]
+            df_relation_role_entity['type'] = 'entity'
+            df_relation_role_event = df_relation_role.loc[df_relation_role['e'].isin(event_ids)]
+            df_relation_role_event['type'] = 'event'
+            df_relation_role = pd.concat([df_relation_role_entity, df_relation_role_event], ignore_index=True)
             df_relation_role = df_relation_role.drop_duplicates().reset_index(drop=True)
 
             # justified by
-            exec_sh('kgtk filter -p ";aida:justifiedBy;" {kgtk_file} > {tmp_file}'
+            exec_sh('kgtk filter -p ";aida:justifiedBy;" -i {kgtk_file} > {tmp_file}'
                     .format(kgtk_file=unreified_kgtk_file, tmp_file=self.tmp_file_path()), self.logger)
             df_just = pd.read_csv(self.tmp_file_path(), delimiter='\t')
             just_dict = {v['node1']: v['node2'] for _, v in df_just.iterrows()}

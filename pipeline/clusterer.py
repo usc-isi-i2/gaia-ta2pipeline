@@ -519,7 +519,10 @@ def process():
     relation_role_se_dict = {'prototype1': [], 'prototype2': [], 'role': [], 'just': []}
     for idx, v in df_relation_role.iterrows():
         relation_role_se_dict['prototype1'].append(v['relation'])
-        relation_role_se_dict['prototype2'].append(entity_to_cluster[v['entity']].prototype)
+        if v['type'] == 'entity':
+            relation_role_se_dict['prototype2'].append(entity_to_cluster[v['e']].prototype)
+        elif v['type'] == 'event':
+            relation_role_se_dict['prototype2'].append(v['e'])
         relation_role_se_dict['role'].append(v['role'])
         relation_role_se_dict['just'].append(v['just'])
     df_relation_role_se = pd.DataFrame.from_dict(relation_role_se_dict)

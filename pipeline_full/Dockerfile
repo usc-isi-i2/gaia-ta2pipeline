@@ -21,20 +21,20 @@ RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 RUN locale-gen
 
 # cache requirements
-COPY ../pipeline/requirements.txt /aida/ta2-pipeline/
-COPY ../../uke-coref/requirements.txt /aida/uke-coref/
+COPY gaia-ta2pipeline/pipeline/requirements.txt /aida/ta2-pipeline/
+COPY uke-coref/dependencies/aida-ukes/requirements.txt /aida/uke-coref/dependencies/aida-ukes/requirements.txt
 RUN pip install -r /aida/ta2-pipeline/requirements.txt
-RUN pip install -r /aida/uke-coref/requirements.txt
+RUN pip install -r /aida/uke-coref/dependencies/aida-ukes/requirements.txt
 
 # named entity pipeline
 WORKDIR /aida/ta2-pipeline/
-COPY ../pipeline .
+COPY gaia-ta2pipeline/pipeline .
 RUN chmod u+x ./entrypoint.sh
 #RUN pip install -r requirements.txt
 
 # UKE pipeline
 WORKDIR /aida/uke-coref/
-COPY ../../uke-coref .
+COPY uke-coref .
 
 #RUN pip install -r ./dependencies/aida-ukes/requirements.txt
 RUN pip install ./dependencies/aida-ukes
@@ -43,5 +43,5 @@ RUN pip install ./dependencies/AIDA-Interchange-Format/python
 RUN pip install -e .
 
 WORKDIR /aida/ta2-full
-COPY . .
+COPY gaia-ta2pipeline/pipeline_full .
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]

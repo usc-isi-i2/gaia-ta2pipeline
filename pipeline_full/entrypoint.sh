@@ -1,5 +1,7 @@
 echo "start resolving named entities coref..."
-/aida/ta2-pipeline/entrypoint.sh
+cd /aida/ta2-pipeline
+./entrypoint.sh
 
 echo "start resolving uke coref..."
-python -m uke_coref --input $INPUT --output $OUTPUT --params /aida/uke-coref/params/$PARAMS --log DEBUG
+cd /aida/uke-coref
+python -m uke_coref --input "$INPUT/$RUN_NAME" --output "$OUTPUT/$RUN_NAME" --params /aida/uke-coref/params/$PARAMS --log DEBUG

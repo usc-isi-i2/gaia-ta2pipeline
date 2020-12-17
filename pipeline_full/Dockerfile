@@ -37,7 +37,7 @@ WORKDIR /aida/uke-coref/
 COPY uke-coref .
 
 #RUN pip install -r ./dependencies/aida-ukes/requirements.txt
-RUN pip install ./dependencies/aida-ukes
+RUN pip install -e ./dependencies/aida-ukes
 RUN pip install ./dependencies/aida-viz
 RUN pip install ./dependencies/AIDA-Interchange-Format/python
 RUN pip install -e .

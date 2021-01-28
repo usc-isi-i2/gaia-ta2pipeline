@@ -92,7 +92,7 @@ class Importer(object):
         tmp_str = ';{};'.format(all_p[0])
         exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                 .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
-        pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+        pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
 
         # rest of the predicate
         inter_columns = []
@@ -101,7 +101,7 @@ class Importer(object):
             tmp_str = ';{};'.format(p)
             exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                     .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
-            pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+            pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
 
             # merge
             if retain_intermediate:
@@ -420,7 +420,7 @@ class Importer(object):
                 df_fb = df_fb.append(pd.Series({'e': target['e'], 'fbid': tuple(fbid),
                     'fbid_score_avg': tuple(fbid_score_avg), 'fbid_score_max': tuple(fbid_score_max)})
                     ,ignore_index=True)
-            df_fb.reset_index(drop=True)
+            df_fb = df_fb.reset_index()
 
         ### embedding vector
         self.logger.info('creating embedding vector')
@@ -538,7 +538,7 @@ class Importer(object):
         #     if len(v.index > 0):
         #         offset = tuple(v['offset'].to_list())
         #         return pd.Series({'offset': offset})
-        # df_ij = df_ij.groupby('e')[['offset']].apply(merge_ij).reset_index()
+        # df_ij = df_ij.groupby('e')[['offset']].apply(merge_ij).reset_index(drop=True)
         # print(df_ij)
         # exit()
 
@@ -563,7 +563,18 @@ class Importer(object):
         #         justified_by = tuple(v['justified_by'].to_list())
         #         return pd.Series({'just_confidence': confidence, 'justified_by': justified_by})
         #
-        # df_just = df_just.groupby('e')[['just_confidence', 'justified_by']].apply(merge_just).reset_index()
+        # df_just = df_just.groupby('e')[['just_confidence', 'justified_by']].apply(merge_just).reset_index(drop=True)
+        self.logger.info('creating text justification')
+        df_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:privateData/aida:jsonContent',
+                                      retain_intermediate=True) \
+            .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'json'})\
+            .drop(columns=['inter_2'])
+        entity_ids = set([v for v in df_entity['e'].to_dict().values()])
+        df_just = df_just.loc[df_just['e'].isin(entity_ids)]
+        df_just['just_type'] = df_just['json'].apply(lambda x: json.loads(eval(x)).get('justificationType'))
+        df_just = df_just.drop_duplicates(subset=['e'])
+        df_just = df_just.drop(columns=['json', 'justified_by'])
+        df_just = df_just.reset_index(drop=True)
 
         ### merge
         self.logger.info('merging all dfs to entity df')
@@ -573,7 +584,7 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity_complete, df_wd, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_ij, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
-        # df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
+        df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
         df_entity_complete['source'] = source
         df_entity_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 

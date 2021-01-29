@@ -83,7 +83,7 @@ class Importer(object):
         for f in glob.glob(os.path.join(self.temp_dir, 'tmp*')):
             os.remove(f)
 
-    def predicate_path(self, infile, path, retain_intermediate=False):
+    def predicate_path(self, infile, path, retain_intermediate=False, quoting=0, doublequote=True):
         all_p = path.split('/')
         if len(all_p) == 0:
             return
@@ -92,7 +92,7 @@ class Importer(object):
         tmp_str = ';{};'.format(all_p[0])
         exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                 .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
-        pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
+        pd_tmp1 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=quoting, doublequote=doublequote)
 
         # rest of the predicate
         inter_columns = []
@@ -101,7 +101,7 @@ class Importer(object):
             tmp_str = ';{};'.format(p)
             exec_sh('kgtk filter -p "{tmp_str}" -i {infile} > {tmp_file}'
                     .format(tmp_str=tmp_str, infile=infile, tmp_file=self.tmp_file_path()), self.logger)
-            pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE, doublequote=False)
+            pd_tmp2 = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=quoting, doublequote=doublequote)
 
             # merge
             if retain_intermediate:
@@ -566,7 +566,7 @@ class Importer(object):
         # df_just = df_just.groupby('e')[['just_confidence', 'justified_by']].apply(merge_just).reset_index(drop=True)
         self.logger.info('creating text justification')
         df_just = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:privateData/aida:jsonContent',
-                                      retain_intermediate=True) \
+                                      retain_intermediate=True, quoting=csv.QUOTE_NONE, doublequote=False) \
             .rename(columns={'node1': 'e', 'inter_1': 'justified_by', 'node2': 'json'})\
             .drop(columns=['inter_2'])
         entity_ids = set([v for v in df_entity['e'].to_dict().values()])
@@ -575,6 +575,13 @@ class Importer(object):
         df_just = df_just.drop_duplicates(subset=['e'])
         df_just = df_just.drop(columns=['json', 'justified_by'])
         df_just = df_just.reset_index(drop=True)
+
+        ### source ltf
+        self.logger.info('creating source ltf')
+        df_source_ltf = self.predicate_path(unreified_kgtk_file, 'aida:justifiedBy/aida:source',
+                                      retain_intermediate=False) \
+            .rename(columns={'node1': 'e', 'node2': 'source_ltf'})
+        # df_source_ltf['source_ltf'] = df_source_ltf['source_ltf'].apply(lambda x: eval(x))
 
         ### merge
         self.logger.info('merging all dfs to entity df')
@@ -585,6 +592,7 @@ class Importer(object):
         # df_entity_complete = pd.merge(df_entity_complete, df_ij, how='left')
         # df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_just, how='left')
+        df_entity_complete = pd.merge(df_entity_complete, df_source_ltf, how='left')
         df_entity_complete['source'] = source
         df_entity_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 

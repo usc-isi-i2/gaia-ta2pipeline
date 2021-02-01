@@ -572,8 +572,20 @@ class Importer(object):
         entity_ids = set([v for v in df_entity['e'].to_dict().values()])
         df_just = df_just.loc[df_just['e'].isin(entity_ids)]
         df_just['just_type'] = df_just['json'].apply(lambda x: json.loads(eval(x)).get('justificationType'))
-        df_just = df_just.drop_duplicates(subset=['e'])
+        df_just['just_mention_string'] = df_just['json'].apply(lambda x: json.loads(eval(x)).get('mention_string'))
+        df_just['just_sentence'] = df_just['json'].apply(lambda x: json.loads(eval(x)).get('sentence'))
         df_just = df_just.drop(columns=['json', 'justified_by'])
+
+        def merge_just(table):
+            if len(table.index) > 0:
+                t1 = tuple(table['just_type'].tolist())
+                t2 = tuple(table['just_mention_string'].tolist())
+                t3 = tuple(table['just_sentence'].tolist())
+                return pd.Series({'just_type': t1, 'just_mention_string': t2, 'just_sentence': t3})
+            else:
+                return pd.Series({'just_type': tuple([]), 'just_mention_string': tuple([]), 'just_sentence': tuple([])})
+        df_just = df_just.groupby('e')[['just_type', 'just_mention_string', 'just_sentence']].apply(merge_just).reset_index()
+        # df_just = df_just.drop_duplicates(subset=['e'])
         df_just = df_just.reset_index(drop=True)
 
         ### source ltf

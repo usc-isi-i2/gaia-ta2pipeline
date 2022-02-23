@@ -252,6 +252,10 @@ class Importer(object):
                 ret[col] = tuple([])
         return pd.Series(ret)
 
+    def assign_qnode_label(self, value):
+        global kgtk_labels
+        return tuple([kgtk_labels.get(v) for v in value])
+
     def create_entity_df(self, kgtk_file, kgtk_db_file, output_file, source):
         self.logger.info('create entity df for ' + source)
 
@@ -279,12 +283,7 @@ class Importer(object):
 
         ### assign type label
         self.logger.info('assigning type label')
-
-        def assign_type_label(value):
-            global kgtk_labels
-            return tuple([kgtk_labels.get(v) for v in value])
-
-        df_type['type_label'] = df_type['type'].apply(assign_type_label)
+        df_type['type_label'] = df_type['type'].apply(self.assign_qnode_label)
 
         ### confidence
         self.logger.info('creating confidence')
@@ -308,6 +307,10 @@ class Importer(object):
         )
         df_link = pd.merge(df_entity, df_link, left_on='e', right_on='e')
         df_link = df_link.groupby('e')[['link', 'link_cv']].apply(self.merge_values).reset_index()
+
+        ### assign link label
+        self.logger.info('assigning type label')
+        df_link['link_label'] = df_link['link'].apply(self.assign_qnode_label)
 
         ### informative justification
         self.logger.info('creating informative justification')
@@ -623,11 +626,12 @@ def process():
     )
     pp.start()
 
-    for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl')):
-    # for infile in glob.glob(os.path.join(config['input_dir'], config['run_name'], 'L0C04959D.ttl')):
+    all_infiles = glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl'))
+    logger.info(f'{len(all_infiles)} files to process')
+    for idx, infile in enumerate(all_infiles):
         source = os.path.basename(infile).split('.')[0]
         pp.add_task(source)
-        logger.info('adding task %s' % source)
+        logger.info(f'adding task {source} [{idx+1}/{len(all_infiles)}]')
 
     pp.task_done()
     pp.join()

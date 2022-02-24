@@ -283,8 +283,11 @@ class Exporter(object):
             proto = row['e']
             cluster = row['cluster']
 
-            info_justs = self.df[self.df['cluster'] == cluster]['info_just'].to_list()
-            info_justs = list(set(info_justs))
+            # select one info_just for each source document (nist)
+            info_justs = self.df[self.df['cluster'] == cluster][['info_just', 'source']]
+            info_justs = info_justs.groupby('source').head(1)['info_just']
+            info_justs = list(set(info_justs.to_list()))
+
             links = self.proto_df['link'].to_list()[0]
             link_cvs = self.proto_df['link_cv'].to_list()[0]
 

@@ -12,7 +12,6 @@ import pyrallel
 from config import config, get_logger
 from common import exec_sh
 import re
-import rdflib
 
 
 # ldc_kg = None
@@ -137,26 +136,34 @@ class Importer(object):
 
                     fout.write(line + '\n')
 
+    def execute_update(self, infile, query):
+        query_file = self.tmp_file_path('query')
+        tmp_outfile = self.tmp_file_path('out')
+        with open(query_file, 'w') as f:
+            f.write(query)
+        exec_sh(f'apache-jena-3.16.0/bin/update --data={infile} --update={query_file} --dump > {tmp_outfile}', self.logger)
+        shutil.move(tmp_outfile, infile)
+        os.remove(query_file)
+
     def clean_nt(self, nt_file, cleaned_nt_file):
         # remove conflict TA1 triples
         self.logger.info('cleaning nt')
 
         # remove clusters
         self.logger.info('Loading TA1 graph')
-        tmp_graph = rdflib.Graph()
 
         # load ns
+        str_ns = ''
         with open(config['namespace_file'], 'r') as f:
             for row in csv.DictReader(f, delimiter='\t'):
-                tmp_graph.bind(row['node1'], row['node2'])
-        # for n in tmp_graph.namespace_manager.namespaces():
-        #     print(n)
+                str_ns += f'PREFIX {row["node1"]}: <{row["node2"]}>\n'
 
-        tmp_graph.parse(nt_file, format='ttl')
+        # make a copy to work on
+        shutil.copy(nt_file, cleaned_nt_file)
 
         # remove associatedKEs
         self.logger.info('Removing TA1 associatedKEs')
-        tmp_graph.update('''
+        str_update = '''
         DELETE {
             ?claim aida:associatedKEs ?cluster .
         }
@@ -164,14 +171,17 @@ class Importer(object):
             ?cluster a aida:SameAsCluster .
             ?cluster aida:prototype ?proto.
             ?proto a aida:Entity .
-            
+
             ?claim a aida:Claim .
             ?claim aida:associatedKEs ?cluster .
-        }''')
+        }
+        
+        '''
+        self.execute_update(cleaned_nt_file, str_ns + str_update)
 
         # remove claimSemantics
         self.logger.info('Removing TA1 claimSemantics')
-        tmp_graph.update('''
+        str_update = '''
         DELETE {
             ?claim aida:claimSemantics ?cluster .
         }
@@ -182,11 +192,12 @@ class Importer(object):
 
             ?claim a aida:Claim .
             ?claim aida:claimSemantics ?cluster .
-        }''')
+        }'''
+        self.execute_update(cleaned_nt_file, str_ns + str_update)
 
         # remove cluster member
         self.logger.info('Removing TA1 ClusterMembership')
-        tmp_graph.update('''
+        str_update = '''
         DELETE {
             ?cm a aida:ClusterMembership .
             ?cm aida:cluster ?cluster .
@@ -198,11 +209,12 @@ class Importer(object):
 
             ?cm a aida:ClusterMembership .
             ?cm aida:cluster ?cluster .
-        }''')
+        }'''
+        self.execute_update(cleaned_nt_file, str_ns + str_update)
 
         # remove cluster & prototype
         self.logger.info('Removing TA1 SameAsCluster')
-        tmp_graph.update('''
+        str_update = '''
         DELETE {
             ?cluster a aida:SameAsCluster .
             ?cluster aida:prototype ?proto.
@@ -211,16 +223,8 @@ class Importer(object):
             ?cluster a aida:SameAsCluster .
             ?cluster aida:prototype ?proto.
             ?proto a aida:Entity .
-        }''')
-
-        # result = tmp_graph.query('''
-        # SELECT ?entity WHERE {
-        #     ?entity a aida:Entity .
-        # }''')
-        # for row in result:
-        #     print(row)
-
-        tmp_graph.serialize(cleaned_nt_file, format='nt')
+        }'''
+        self.execute_update(cleaned_nt_file, str_ns + str_update)
 
     def convert_nt_to_kgtk(self, nt_file, kgtk_file):
         self.logger.info('convert nt to kgtk')
@@ -604,7 +608,9 @@ def load_resource():
 #     return convert_nan_to_none(pd.read_csv(config['wd_to_fb_file']))
 
 
-def worker(source):
+def worker(source, logger=None, message=None):
+    if logger and message:
+        logger.info(message)
     importer = Importer(source=source)
     importer.run()
 
@@ -630,8 +636,7 @@ def process():
     logger.info(f'{len(all_infiles)} files to process')
     for idx, infile in enumerate(all_infiles):
         source = os.path.basename(infile).split('.')[0]
-        pp.add_task(source)
-        logger.info(f'adding task {source} [{idx+1}/{len(all_infiles)}]')
+        pp.add_task(source, logger, f'starting task {source} [{idx+1}/{len(all_infiles)}]')
 
     pp.task_done()
     pp.join()

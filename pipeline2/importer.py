@@ -267,9 +267,11 @@ class Importer(object):
         self.logger.info('creating id')
         df_entity = self.kgtk_query(kgtk_db_file, kgtk_file,
             match='(e)-[:`rdf:type`]->(:`aida:Entity`)',
+                  # '(e)-[:`aida:justifiedBy`]->(just)',
             return_='e AS e'
         )
         df_entity = df_entity.drop_duplicates().reset_index(drop=True)
+        # df_entity = df_entity.groupby('e')[['e_just']].apply(self.merge_values).reset_index()
 
         ### type
         self.logger.info('creating type')
@@ -279,11 +281,36 @@ class Importer(object):
                   '(stmt)-[:`rdf:subject`]->(e),'+
                   '(stmt)-[:`rdf:predicate`]->(:`rdf:type`),'+
                   '(stmt)-[:`rdf:object`]->(type),'+
-                  '(stmt)-[:`aida:confidence`]->(c)-[:`aida:confidenceValue`]->(cv)',
-            return_='e AS e,type AS type ,cv AS type_cv'
+                  '(stmt)-[:`aida:confidence`]->(c)-[:`aida:confidenceValue`]->(cv),'+
+                  '(stmt)-[:`aida:justifiedBy`]->(just)',
+            return_='e AS e,type AS type,cv AS type_cv,just AS type_just'
         )
         df_type = pd.merge(df_entity, df_type, left_on='e', right_on='e')
-        df_type = df_type.groupby('e')[['type', 'type_cv']].apply(self.merge_values).reset_index()
+        df_type = df_type.groupby('e')[['type', 'type_cv', 'type_just']].apply(self.merge_values).reset_index()
+
+        def merge_just(v):
+
+            result = {'e': v['e'], 'type': [], 'type_cv': [], 'type_just': []}
+
+            type_, type_cv, type_just = v['type'], v['type_cv'], v['type_just']
+            unique_type = set(type_)
+            for t in unique_type:
+                # use the maximum cv
+                # aggregate justification
+                indices = [i for i, x in enumerate(type_) if x == t]
+                cv = max([type_cv[i] for i in indices])
+                justs = tuple([type_just[i] for i in indices])
+
+                result['type'].append(t)
+                result['type_cv'].append(cv)
+                result['type_just'].append(justs)
+
+            result['type'] = tuple(result['type'])
+            result['type_cv'] = tuple(result['type_cv'])
+            result['type_just'] = tuple(result['type_just'])
+            return pd.Series(result)
+
+        df_type = df_type.apply(merge_just, axis=1).reset_index()
 
         ### assign type label
         self.logger.info('assigning type label')

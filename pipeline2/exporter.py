@@ -43,6 +43,21 @@ PROTOTYPE_LINK_TEMPLATE = """
         aida:linkTarget "{link}"^^xsd:string ;
         aida:system gaia:TA2 ] ;\n"""
 
+
+PROTOTYPE_TYPE_TEMPLATE = """[ a rdf:Statement;
+        rdf:object        "{type_}"^^xsd:string ;
+        rdf:predicate     rdf:type ;
+        rdf:subject       {proto} ;
+        aida:confidence   [ a   aida:Confidence ;
+            aida:confidenceValue  "{cv}"^^xsd:double ;
+            aida:system           gaia:TA2
+        ] ;
+{just}
+        aida:system       gaia:TA2
+] .\n"""
+
+PROTOTYPE_TYPE_JUST_TEMPLATE = """        aida:justifiedBy {just} ;\n"""
+
 # ENTITY_ASSERTION_TEMPLATE = """{}  a        rdf:Statement ;
 #         rdf:object        ldcOnt:PER ;
 #         rdf:predicate     rdf:type ;
@@ -78,8 +93,7 @@ ASSO_CLAIM_TEMPLATE = """{claim} aida:associatedKEs {cluster} .\n"""
 CLAIM_SEMAN_TEMPLATE = """{claim} aida:claimSemantics {cluster} .\n"""
 
 
-# SUPER_EDGE_TEMPLATE = """[
-#     a                   rdf:Statement ;
+# SUPER_EDGE_TEMPLATE = """[ a rdf:Statement ;
 #     rdf:subject         {proto1} ;
 #     rdf:predicate       {edge_type} ;
 #     rdf:object          {proto2} ;
@@ -307,6 +321,30 @@ class Exporter(object):
 
             proto_info = PROTOTYPE_TEMPLATE.format(proto=proto, cv=cv, info_just=ij_str, link=link_str)
             self.write(proto_info)
+
+            # type and type justification
+            types = self.proto_df['type'].to_list()[0]
+            type_cvs = self.proto_df['type_cv'].to_list()[0]
+            type_just = self.df[self.df['cluster'] == cluster][['type', 'type_just']]
+            t_to_j_mapping = defaultdict(set)  # type to justification mapping, aggregate all justifications
+            for _, row in type_just.iterrows():
+                ts = row['type']
+                tjs = row['type_just']
+                for t, j in zip(ts, tjs):
+                    for jj in j:
+                        t_to_j_mapping[t].add(jj)
+
+            # create statement for each type
+            for t in t_to_j_mapping:
+                type_just_str = ''
+                for just in t_to_j_mapping[t]:
+                    just = self.extend_prefix(just)
+                    type_just_str += PROTOTYPE_TYPE_JUST_TEMPLATE.format(just=just)
+
+                type_str = ''
+                for type_, cv in zip(types, type_cvs):
+                    type_str += PROTOTYPE_TYPE_TEMPLATE.format(proto=proto, type_=type_, cv=cv, just=type_just_str)
+                self.write(type_str)
 
     def declare_claims(self):
         for idx, row in self.proto_df.iterrows():

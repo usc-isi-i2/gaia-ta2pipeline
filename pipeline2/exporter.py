@@ -178,13 +178,20 @@ class Exporter(object):
         return '<{}>'.format(s)
 
     def run(self):
+        logger.info('Declaring prefix')
         self.declare_prefix()
         # self.declare_entity()
+        logger.info('Declaring cluster')
         self.declare_cluster()
+        logger.info('Declaring cluster membership')
         self.declare_cluster_membership()
+        logger.info('Declaring prototype')
         self.declare_prototype()
+        logger.info('Declaring super edge')
         self.declare_super_edge()
+        logger.info('Declaring claims')
         self.declare_claims()
+
         self.fp.flush()  # file could be truncated without this line
 
     def __dell__(self):
@@ -459,11 +466,14 @@ def process():
     # #         .format(output_dir=output_dir), logger)
 
     sh_cmd = f'''
+    # make NIST dir
+    mkdir -p {output_dir}/NIST
+    
     # merge ta1 files
     cat {temp_dir}/*/*.cleaned.nt > {output_dir}/ta1.ttl
 
     # merge ta1 with ta2
-    cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/ta2_named.ttl
+    cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/NIST/task2_kb.ttl
 
     # remove temp files
     rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl

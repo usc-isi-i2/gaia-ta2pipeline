@@ -38,7 +38,7 @@ class Cluster(object):
 
     def __init__(self):
         self.rids = set([])
-        self.id = None
+        self.id_ = None
         self.links = []
         self.link_cvs = []
         self.types = []
@@ -152,6 +152,8 @@ def process():
 
     df_entity = pd.DataFrame()
     df_event = pd.DataFrame()
+    df_relation = pd.DataFrame()
+    df_role = pd.DataFrame()
 
     logger.info('loading entity dataframes')
     for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
@@ -159,9 +161,16 @@ def process():
         # entity
         df_entity = df_entity.append(pd.read_hdf(infile))
         # event
-        # event_file = infile[:-len('entity.h5')] + 'event.h5'
-        # df_event = df_event.append(pd.read_hdf(event_file))
-    logger.info('Read in {} entities, {} events'.format(len(df_entity), len(df_event)))
+        event_file = infile[:-len('entity.h5')] + 'event.h5'
+        df_event = df_event.append(pd.read_hdf(event_file))
+        # relation
+        relation_file = infile[:-len('entity.h5')] + 'relation.h5'
+        df_relation = df_relation.append(pd.read_hdf(relation_file))
+        # role
+        role_file = infile[:-len('entity.h5')] + 'role.h5'
+        df_role = df_role.append(pd.read_hdf(role_file))
+
+    logger.info(f'Read in {len(df_entity)} entities, {len(df_event)} events, {len(df_relation)} relations, {len(df_role)} roles')
     df_entity = df_entity.drop_duplicates(subset=['e'], keep='last')  # cmu data has cross document entities, only keep one
     df_entity = df_entity.reset_index(drop=True)
     df_entity = df_entity[df_entity['type'].notnull()]  # drop the entity with no type
@@ -169,7 +178,15 @@ def process():
     # df_entity['type_cv'] = df_entity['type_cv'].apply(lambda x: x[0])
     df_entity_ori = df_entity.copy()
     df_event = df_event.drop_duplicates(subset=['e'], keep='last').reset_index(drop=True)
-    logger.info('After deduplication: {} entities, {} events'.format(len(df_entity), len(df_event)))
+    df_event['proto'] = df_event['proto'].apply(lambda x: x[0])
+    df_event['cluster'] = df_event['cluster'].apply(lambda x: x[0])
+    df_relation = df_relation.drop_duplicates(subset=['e'], keep='last').reset_index(drop=True)
+    df_relation['proto'] = df_relation['proto'].apply(lambda x: x[0])
+    df_relation['cluster'] = df_relation['cluster'].apply(lambda x: x[0])
+    # different justifications make multiple rows in df_role
+    df_role = df_role.drop_duplicates(subset=['e1', 'e1_type', 'e2', 'e2_type', 'role', 'just'], keep='last').reset_index(drop=True)
+    logger.info(f'After deduplication: {len(df_entity)} entities, {len(df_event)} events, {len(df_relation)} relations, {len(df_role)} roles')
+
     logger.info('exporting clusters')
     df_entity_cluster = df_entity_ori.copy()
     df_entity_cluster['cluster'] = None
@@ -288,7 +305,7 @@ def process():
     #
     #     clusters.append(c)
 
-    # rest of the entities (no link, no type)
+    # rest of the entities
     for e in unclustered_entities:
         c = Cluster()
         c.rids = [e]
@@ -434,7 +451,7 @@ def process():
     # generate cluster id
     for c in clusters:
         cid = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
-        c.id = cid
+        c.id_ = cid
         cid_to_cluster[cid] = c
         for e in c.rids:
             entities[e]['cluster'] = cid
@@ -466,7 +483,7 @@ def process():
     prototype_dict = {'e': [], 'cluster': [], 'synthetic': [], 'link': [],
                       'link_cv': [], 'type': [], 'type_cv': []}
     for c in clusters:
-        cid = c.id
+        cid = c.id_
         prototype_dict['e'].append(f'gaia:entity/prototype/{cid}')
         prototype_dict['cluster'].append(f'gaia:entity/cluster/{cid}')
         prototype_dict['synthetic'].append(True)
@@ -492,10 +509,81 @@ def process():
 
     logger.info('writing to disk')
     entity_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
+    # event_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event')
+    # relation_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation')
+    # role_output_file = os.path.join(config['temp_dir'], config['run_name'], 'role')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         df_complete_entity_clusters.to_hdf(entity_cluster_output_file + '.h5', 'entity', mode='w', format='fixed')
         df_complete_entity_clusters.to_csv(entity_cluster_output_file + '.h5.csv')
+
+    ### construct super edge
+    logger.info('constructing super edge')
+
+    entity_to_proto = {}
+    for c in clusters:
+        cid = c.id_
+        for rid in c.rids:
+            entity_to_proto[rid] = f'gaia:entity/prototype/{cid}'
+    event_to_proto = {}
+    for _, row in df_event[['e', 'proto']].iterrows():
+        event_to_proto[row['e']] = row['proto']
+    relation_to_proto = {}
+    for _, row in df_relation[['e', 'proto']].iterrows():
+        relation_to_proto[row['e']] = row['proto']
+
+    # merge edges to be super edges
+    super_edge_merged = defaultdict(
+        lambda: {'just': set([]), 'cv': 0.0, 'proto1': proto1, 'proto2': proto2, 'role': role})
+    for _, row in df_role.iterrows():
+        e1 = row['e1']
+        e2 = row['e2']
+        e1_type = row['e1_type']
+        e2_type = row['e2_type']
+        role = row['role']
+        cv = row['cv']
+        just = row['just']
+
+        proto1 = None
+        if e1_type == 'aida:Event':
+            proto1 = event_to_proto[e1]
+        elif e1_type == 'aida:Relation':
+            proto1 = relation_to_proto[e1]
+        elif e1_type == 'aida:Entity':
+            proto1 = entity_to_proto[e1]
+        else:
+            logger.error(f'Unknown type1 {e1_type} for prototype1 {proto1} while creating the super edge')
+
+        proto2 = None
+        if e2_type == 'aida:Event':
+            proto2 = event_to_proto[e2]
+        elif e2_type == 'aida:Relation':
+            proto2 = relation_to_proto[e2]
+        elif e2_type == 'aida:Entity':
+            proto2 = entity_to_proto[e2]
+        else:
+            logger.error(f'Unknown type2 {e2_type} for prototype2 {proto2} while creating the super edge')
+
+        k = f'{proto1}-{proto2}-{role}'  # key for merging
+        super_edge_merged[k]['just'].add(just)
+        super_edge_merged[k]['cv'] = max(super_edge_merged[k]['cv'], cv)
+
+    # construct dataframe
+    super_edges = {'proto1': [], 'proto2': [], 'role': [], 'cv': [], 'just': []}
+    for _, v in super_edge_merged.items():
+        super_edges['proto1'].append(v['proto1'])
+        super_edges['proto2'].append(v['proto2'])
+        super_edges['role'].append(v['role'])
+        super_edges['cv'].append(v['cv'])
+        super_edges['just'].append(tuple(v['just']))
+    df_super_edge = pd.DataFrame.from_dict(super_edges)
+
+    super_edge_output_file = os.path.join(config['temp_dir'], config['run_name'], 'super_edge')
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        df_super_edge.to_hdf(super_edge_output_file + '.h5', 'super_edge', mode='w', format='fixed')
+        df_super_edge.to_csv(super_edge_output_file + '.h5.csv')
+
 
     # viz
     # qnode_labels = {}

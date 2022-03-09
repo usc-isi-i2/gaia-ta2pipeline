@@ -44,7 +44,7 @@ PROTOTYPE_LINK_TEMPLATE = """
         aida:system gaia:TA2 ] ;\n"""
 
 
-PROTOTYPE_TYPE_TEMPLATE = """[ a rdf:Statement;
+PROTOTYPE_TYPE_TEMPLATE = """[ a rdf:Statement, aida:TypeStatement ;
         rdf:object        "{type_}"^^xsd:string ;
         rdf:predicate     rdf:type ;
         rdf:subject       {proto} ;
@@ -93,13 +93,19 @@ ASSO_CLAIM_TEMPLATE = """{claim} aida:associatedKEs {cluster} .\n"""
 CLAIM_SEMAN_TEMPLATE = """{claim} aida:claimSemantics {cluster} .\n"""
 
 
-# SUPER_EDGE_TEMPLATE = """[ a rdf:Statement ;
-#     rdf:subject         {proto1} ;
-#     rdf:predicate       {edge_type} ;
-#     rdf:object          {proto2} ;
-#     aida:justifiedBy    {just} ;
-#     aida:system         gaia:TA2
-# ] .\n"""
+SUPER_EDGE_TEMPLATE = """[ a rdf:Statement, aida:ArgumentStatement ;
+    rdf:subject         {proto1} ;
+    rdf:predicate       "{role}"^^xsd:string ;
+    rdf:object          {proto2} ;
+    aida:confidence [ a aida:Confidence ;
+        aida:confidenceValue "{cv}"^^xsd:double ;
+        aida:system gaia:TA2 ] ;
+{just}
+    aida:system         gaia:TA2
+] .\n"""
+
+
+SUPER_EDGE_JUST_TEMPLATE = """    aida:justifiedBy {just} ;\n"""
 
 # SUPER_EDGE_COMPOUND_JUSTIFICATION = """aida:containedJustification {infojust} ;\n"""
 
@@ -126,16 +132,13 @@ CLAIM_SEMAN_TEMPLATE = """{claim} aida:claimSemantics {cluster} .\n"""
 
 
 class Exporter(object):
-    def __init__(self, entity, event, event_role, relation, relation_role, outfile):
+    def __init__(self, entity, super_edge, outfile):
 
         df = pd.read_hdf(entity)
         self.fp = open(outfile, "w")
         self.df = df[df["synthetic"] == False] # [ESSENTIAL_COLUMNS]
         self.proto_df = df[df["synthetic"] == True] # [ESSENTIAL_COLUMNS]
-        self.df_event = None  # pd.read_hdf(event)
-        self.df_event_role = None  # pd.read_hdf(event_role)
-        self.df_relation = None  # pd.read_hdf(relation)
-        self.df_relation_role = None  # pd.read_hdf(relation_role)
+        self.df_super_edge = pd.read_hdf(super_edge)
         self.n = self.df.shape[0]
         self.entities = None
         self.clusters = set()
@@ -180,8 +183,7 @@ class Exporter(object):
         self.declare_cluster()
         self.declare_cluster_membership()
         self.declare_prototype()
-        # self.declare_entity_assertion()
-        # self.declare_super_edge()
+        self.declare_super_edge()
         self.declare_claims()
         self.fp.flush()  # file could be truncated without this line
 
@@ -378,41 +380,22 @@ class Exporter(object):
                 claim_info = CLAIM_SEMAN_TEMPLATE.format(claim=self.extend_prefix(claim), cluster=self.extend_prefix(cluster))
                 self.write(claim_info)
 
+    def declare_super_edge(self):
+        for idx, row in self.df_super_edge.iterrows():
+            proto1 = self.extend_prefix(row['proto1'])
+            proto2 = self.extend_prefix(row['proto2'])
+            role = row['role']
+            cv = row['cv']
+            just = row['just']
 
-    # def declare_entity_assertion(self):
-    #     # use entity id for assertion id
-    #     for entity, source in zip(self.entities, self.entity_sources):
-    #         if self.__class__.legal_filter(entity, source):
-    #             # a mimic of other objects like `entity`, `relations`
-    #             assertion = "assertion:" + ':'.join(entity.split(':')[1:])
-    #             assertion = self.extend_prefix(assertion)
-    #             entity = self.extend_prefix(entity)
-    #             assertion_info = ENTITY_ASSERTION_TEMPLATE.format(assertion,
-    #                                                               entity,
-    #                                                               source,
-    #                                                               source)
-    #             self.write(assertion_info)
-    #
-    # def declare_super_edge(self):
-    #     for idx, row in self.df_relation_role.iterrows():
-    #         proto1 = self.extend_prefix(row['prototype1'])
-    #         proto2 = self.extend_prefix(row['prototype2'])
-    #         edge_type = self.extend_prefix(row['role'])
-    #         just = row['just']
-    #
-    #         super_edge_info = SUPER_EDGE_TEMPLATE.format(
-    #             proto1=proto1, proto2=proto2, edge_type=edge_type, just=just)
-    #         self.write(super_edge_info)
-    #
-    #     for idx, row in self.df_event_role.iterrows():
-    #         proto1 = self.extend_prefix(row['prototype1'])
-    #         proto2 = self.extend_prefix(row['prototype2'])
-    #         edge_type = self.extend_prefix(row['role'])
-    #         just = row['just']
-    #
-    #         super_edge_info = SUPER_EDGE_TEMPLATE.format(
-    #             proto1=proto1, proto2=proto2, edge_type=edge_type, just=just)
-    #         self.write(super_edge_info)
+            just_str = ''
+            for j in just:
+                j = self.extend_prefix(j)
+                just_str += SUPER_EDGE_JUST_TEMPLATE.format(just=j)
+
+            super_edge_info = SUPER_EDGE_TEMPLATE.format(
+                proto1=proto1, proto2=proto2, role=role, cv=cv, just=just_str)
+            self.write(super_edge_info)
 
 
 def process():
@@ -424,12 +407,13 @@ def process():
     os.makedirs(output_dir, exist_ok=True)
 
     infile = os.path.join(temp_dir, 'entity_cluster.h5')
-    event_file = infile[:-len('entity_cluster.h5')] + 'event_cluster.h5'
-    event_role_file = infile[:-len('entity_cluster.h5')] + 'event_role.h5'
-    relation_file = infile[:-len('entity_cluster.h5')] + 'relation_cluster.h5'
-    relation_role_file = infile[:-len('entity_cluster.h5')] + 'relation_role.h5'
+    # event_file = infile[:-len('entity_cluster.h5')] + 'event_cluster.h5'
+    # event_role_file = infile[:-len('entity_cluster.h5')] + 'event_role.h5'
+    # relation_file = infile[:-len('entity_cluster.h5')] + 'relation_cluster.h5'
+    # relation_role_file = infile[:-len('entity_cluster.h5')] + 'relation_role.h5'
+    super_edge_file = infile[:-len('entity_cluster.h5')] + 'super_edge.h5'
     outfile = os.path.join(output_dir, 'ta2_entity_cluster.ttl')
-    exporter = Exporter(infile, event_file, event_role_file, relation_file, relation_role_file, outfile)
+    exporter = Exporter(infile, super_edge_file, outfile)
     exporter.run()
 
     # # assign bnode globally unique id

@@ -306,8 +306,10 @@ class Exporter(object):
             proto = row['e']
             cluster = row['cluster']
 
+            df_cluster = self.df[self.df['cluster'] == cluster]
+
             # select one info_just for each source document (nist)
-            info_justs = self.df[self.df['cluster'] == cluster][['info_just', 'source']]
+            info_justs = df_cluster[['info_just', 'source']]
             info_justs = info_justs.groupby('source').head(1)['info_just']
             info_justs = list(set(info_justs.to_list()))
 
@@ -334,7 +336,7 @@ class Exporter(object):
             # type and type justification
             types = self.proto_df['type'].to_list()[0]
             type_cvs = self.proto_df['type_cv'].to_list()[0]
-            type_just = self.df[self.df['cluster'] == cluster][['type', 'type_just']]
+            type_just = df_cluster[['type', 'type_just']]
             t_to_j_mapping = defaultdict(set)  # type to justification mapping, aggregate all justifications
             for _, row in type_just.iterrows():
                 ts = row['type']
@@ -358,9 +360,10 @@ class Exporter(object):
     def declare_claims(self):
         for idx, row in self.proto_df.iterrows():
             cluster = row['cluster']
+            df_cluster = self.df[self.df['cluster'] == cluster]
 
             dedup_asso_claim = set()
-            asso_claim = self.df[self.df['cluster'] == cluster]['asso_claim'].to_list()
+            asso_claim = df_cluster['asso_claim'].to_list()
             for claims in asso_claim:
                 if pd.isna(claims):
                     continue
@@ -373,7 +376,7 @@ class Exporter(object):
                 self.write(claim_info)
 
             dedup_claim_seman = set()
-            claim_seman = self.df[self.df['cluster'] == cluster]['claim_seman'].to_list()
+            claim_seman = df_cluster['claim_seman'].to_list()
             for claims in claim_seman:
                 if pd.isna(claims):
                     continue

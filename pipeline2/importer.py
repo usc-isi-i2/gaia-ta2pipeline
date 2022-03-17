@@ -92,20 +92,24 @@ class Importer(object):
         pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=quoting, doublequote=doublequote)
         return pd_tmp
 
-    def kgtk_query(self, dbfile, infile, match, return_=None, where=None):
+    def kgtk_query(self, dbfile, infile, match, option=None, return_=None, where=None):
         query = f'kgtk query --graph-cache "{dbfile}" -i "{infile}"'
 
         if match:
             query += f' --match \'{match}\''
         if where:
             query += f' --where \'{where}\''
+        if option:
+            query += f' --opt \'{option}\''
         if return_:
             query += f' --return \'{return_}\''
 
         query += f' > {self.tmp_file_path()}'
         # print(query)
         exec_sh(query, self.logger)
-        pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t')
+
+        # https://github.com/usc-isi-i2/kgtk/blob/6168e06fac121f2e60b687ff90ee6f5cc3d074b5/kgtk/cli/query.py#L288
+        pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE)
         return pd_tmp
 
     def convert_ttl_to_nt(self, ttl_file, nt_file):
@@ -335,9 +339,27 @@ class Importer(object):
 
         ### informative justification
         self.logger.info('creating informative justification')
-        df_infojust = self.predicate_path(kgtk_db_file, kgtk_file, 'aida:informativeJustification') \
-            .rename(columns={'node1': 'e', 'node2': 'info_just'})
-        df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')
+        df_infojust = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                    match='(e)-[:`rdf:type`]->(:`aida:Entity`),'+
+                                          '(e)-[:`aida:informativeJustification`]->(ij),'+
+                                          '(ij)-[:`aida:startOffset`]->(ij_start),'+
+                                          '(ij)-[:`aida:endOffsetInclusive`]->(ij_end)',
+                                    option='(ij)-[:`aida:privateData`]->(p),'+
+                                            '(p)-[:`aida:jsonContent`]->(j),'+
+                                            '(p)-[:`aida:system`]->(:`http://www.uiuc.edu/mention`)',
+                                    return_='e AS e, ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention'
+                                    )
+        df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e', how='left')  # in case start/end is missing
+
+        def parse_private_date(v):
+            try:
+                v = json.loads(eval(v))
+                return v
+                # return v.get('mention_string')
+            except:
+                return None
+
+        df_infojust['mention'] = df_infojust['mention'].apply(parse_private_date)
 
         ### associated claims
         self.logger.info('creating associated claims')
@@ -369,6 +391,19 @@ class Importer(object):
         df_claim_seman = pd.merge(df_entity, df_claim_seman, left_on='e', right_on='e')
         df_claim_seman = df_claim_seman.groupby('e')[['claim_seman']].apply(self.merge_values).reset_index()
 
+        ### cluster
+        self.logger.info('creating associated cluster')
+        df_cluster = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                     match='(cluster)-[:`rdf:type`]->(:`aida:SameAsCluster`),'+
+                                           '(cluster)-[:`aida:prototype`]->(proto)-[:`rdf:type`]->(:`aida:Entity`),'+
+                                           '(cm)-[:`rdf:type`]->(:`aida:ClusterMembership`),'+
+                                           '(cm)-[:`aida:cluster`]->(cluster),'+
+                                           '(cm)-[:`aida:clusterMember`]->(e)',
+                                     return_='e AS e, proto AS ta1_proto, cluster AS ta1_cluster'
+                                     )
+        df_cluster = pd.merge(df_entity, df_cluster, left_on='e', right_on='e')
+        df_cluster = df_cluster.groupby('e')[['ta1_proto', 'ta1_cluster']].apply(self.merge_values).reset_index()
+
         ### merge
         self.logger.info('merging all dfs to entity df')
         df_entity_complete = df_entity
@@ -379,6 +414,7 @@ class Importer(object):
         df_entity_complete = pd.merge(df_entity_complete, df_infojust, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_asso_claim, how='left')
         df_entity_complete = pd.merge(df_entity_complete, df_claim_seman, how='left')
+        df_entity_complete = pd.merge(df_entity_complete, df_cluster, how='left')
         df_entity_complete['source'] = source
         df_entity_complete.drop_duplicates(subset=['e']).reset_index(drop=True)
 

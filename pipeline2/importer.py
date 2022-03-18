@@ -92,7 +92,7 @@ class Importer(object):
         pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=quoting, doublequote=doublequote)
         return pd_tmp
 
-    def kgtk_query(self, dbfile, infile, match, option=None, return_=None, where=None):
+    def kgtk_query(self, dbfile, infile, match, option=None, return_=None, where=None, quoting=csv.QUOTE_MINIMAL):
         query = f'kgtk query --graph-cache "{dbfile}" -i "{infile}"'
 
         if match:
@@ -108,8 +108,9 @@ class Importer(object):
         # print(query)
         exec_sh(query, self.logger)
 
+        # kgtk query set quoting to csv.QUOTE_NONE by default
         # https://github.com/usc-isi-i2/kgtk/blob/6168e06fac121f2e60b687ff90ee6f5cc3d074b5/kgtk/cli/query.py#L288
-        pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=csv.QUOTE_NONE)
+        pd_tmp = pd.read_csv(self.tmp_file_path(), delimiter='\t', quoting=quoting)
         return pd_tmp
 
     def convert_ttl_to_nt(self, ttl_file, nt_file):
@@ -347,7 +348,8 @@ class Importer(object):
                                     option='(ij)-[:`aida:privateData`]->(p),'+
                                             '(p)-[:`aida:jsonContent`]->(j),'+
                                             '(p)-[:`aida:system`]->(:`http://www.uiuc.edu/mention`)',
-                                    return_='e AS e, ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention'
+                                    return_='e AS e, ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention',
+                                    quoting=csv.QUOTE_NONE  # this maks mention string properly parsed
                                     )
         df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e', how='left')  # in case start/end is missing
 

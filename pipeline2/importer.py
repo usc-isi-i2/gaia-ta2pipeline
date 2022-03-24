@@ -305,7 +305,7 @@ class Importer(object):
             result['type_just'] = tuple(result['type_just'])
             return pd.Series(result)
 
-        df_type = df_type.apply(merge_just, axis=1).reset_index()
+        df_type = df_type.apply(merge_just, axis=1).reset_index(drop=True)
 
         ### assign type label
         self.logger.info('assigning type label')
@@ -342,16 +342,25 @@ class Importer(object):
         self.logger.info('creating informative justification')
         df_infojust = self.kgtk_query(kgtk_db_file, kgtk_file,
                                     match='(e)-[:`rdf:type`]->(:`aida:Entity`),'+
-                                          '(e)-[:`aida:informativeJustification`]->(ij),'+
-                                          '(ij)-[:`aida:startOffset`]->(ij_start),'+
-                                          '(ij)-[:`aida:endOffsetInclusive`]->(ij_end)',
-                                    option='(ij)-[:`aida:privateData`]->(p),'+
+                                          '(e)-[:`aida:informativeJustification`]->(ij)',
+                                    return_='e AS e, ij AS info_just'
+                                    )
+        df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')
+
+        ### informative justification extension
+        self.logger.info('creating informative justification extension')
+        df_infojust_ext = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                      match='(e)-[:`rdf:type`]->(:`aida:Entity`),'+
+                                            '(e)-[:`aida:informativeJustification`]->(ij),'+
+                                            '(ij)-[:`rdf:type`]->(:`aida:TextJustification`),'+
+                                            '(ij)-[:`aida:startOffset`]->(ij_start),'+
+                                            '(ij)-[:`aida:endOffsetInclusive`]->(ij_end),'+
+                                            '(ij)-[:`aida:privateData`]->(p),'+
                                             '(p)-[:`aida:jsonContent`]->(j),'+
                                             '(p)-[:`aida:system`]->(:`http://www.uiuc.edu/mention`)',
-                                    return_='e AS e, ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention',
-                                    quoting=csv.QUOTE_NONE  # this maks mention string properly parsed
-                                    )
-        df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e', how='left')  # in case start/end is missing
+                                      return_='ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention',
+                                      quoting=csv.QUOTE_NONE  # this maks mention string properly parsed
+                                      )
 
         def parse_private_date(v):
             try:
@@ -361,7 +370,9 @@ class Importer(object):
             except:
                 return None
 
-        df_infojust['mention'] = df_infojust['mention'].apply(parse_private_date)
+        df_infojust_ext['mention'] = df_infojust_ext['mention'].apply(parse_private_date)
+        df_infojust = pd.merge(df_infojust, df_infojust_ext, left_on='info_just', right_on='info_just', how='left')
+
 
         ### associated claims
         self.logger.info('creating associated claims')

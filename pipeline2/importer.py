@@ -348,30 +348,31 @@ class Importer(object):
         df_infojust = pd.merge(df_entity, df_infojust, left_on='e', right_on='e')
 
         ### informative justification extension
-        self.logger.info('creating informative justification extension')
-        df_infojust_ext = self.kgtk_query(kgtk_db_file, kgtk_file,
-                                      match='(e)-[:`rdf:type`]->(:`aida:Entity`),'+
-                                            '(e)-[:`aida:informativeJustification`]->(ij),'+
-                                            '(ij)-[:`rdf:type`]->(:`aida:TextJustification`),'+
-                                            '(ij)-[:`aida:startOffset`]->(ij_start),'+
-                                            '(ij)-[:`aida:endOffsetInclusive`]->(ij_end),'+
-                                            '(ij)-[:`aida:privateData`]->(p),'+
-                                            '(p)-[:`aida:jsonContent`]->(j),'+
-                                            '(p)-[:`aida:system`]->(:`http://www.uiuc.edu/mention`)',
-                                      return_='ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention',
-                                      quoting=csv.QUOTE_NONE  # this maks mention string properly parsed
-                                      )
+        if config.get('extract_mention', False):
+            self.logger.info('creating informative justification extension')
+            df_infojust_ext = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                          match='(e)-[:`rdf:type`]->(:`aida:Entity`),'+
+                                                '(e)-[:`aida:informativeJustification`]->(ij),'+
+                                                '(ij)-[:`rdf:type`]->(:`aida:TextJustification`),'+
+                                                '(ij)-[:`aida:startOffset`]->(ij_start),'+
+                                                '(ij)-[:`aida:endOffsetInclusive`]->(ij_end),'+
+                                                '(ij)-[:`aida:privateData`]->(p),'+
+                                                '(p)-[:`aida:jsonContent`]->(j),'+
+                                                '(p)-[:`aida:system`]->(:`http://www.uiuc.edu/mention`)',
+                                          return_='ij AS info_just, ij_start AS ij_start, ij_end AS ij_end, j AS mention',
+                                          quoting=csv.QUOTE_NONE  # this maks mention string properly parsed
+                                          )
 
-        def parse_private_date(v):
-            try:
-                v = json.loads(eval(v))
-                return v
-                # return v.get('mention_string')
-            except:
-                return None
+            def parse_private_date(v):
+                try:
+                    v = json.loads(eval(v))
+                    return v
+                    # return v.get('mention_string')
+                except:
+                    return None
 
-        df_infojust_ext['mention'] = df_infojust_ext['mention'].apply(parse_private_date)
-        df_infojust = pd.merge(df_infojust, df_infojust_ext, left_on='info_just', right_on='info_just', how='left')
+            df_infojust_ext['mention'] = df_infojust_ext['mention'].apply(parse_private_date)
+            df_infojust = pd.merge(df_infojust, df_infojust_ext, left_on='info_just', right_on='info_just', how='left')
 
 
         ### associated claims

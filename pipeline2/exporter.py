@@ -313,8 +313,8 @@ class Exporter(object):
             info_justs = info_justs.groupby('source').head(1)['info_just']
             info_justs = list(set(info_justs.to_list()))
 
-            links = self.proto_df['link'].to_list()[0]
-            link_cvs = self.proto_df['link_cv'].to_list()[0]
+            links = row['link']
+            link_cvs = row['link_cv']
 
             proto = self.extend_prefix(proto)
             cv = 1.0
@@ -334,13 +334,13 @@ class Exporter(object):
             self.write(proto_info)
 
             # type and type justification
-            types = self.proto_df['type'].to_list()[0]
-            type_cvs = self.proto_df['type_cv'].to_list()[0]
+            types = row['type']
+            type_cvs = row['type_cv']
             type_just = df_cluster[['type', 'type_just']]
             t_to_j_mapping = defaultdict(set)  # type to justification mapping, aggregate all justifications
-            for _, row in type_just.iterrows():
-                ts = row['type']
-                tjs = row['type_just']
+            for _, row2 in type_just.iterrows():
+                ts = row2['type']
+                tjs = row2['type_just']
                 for t, j in zip(ts, tjs):
                     for jj in j:
                         t_to_j_mapping[t].add(jj)

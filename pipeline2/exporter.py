@@ -412,8 +412,8 @@ def process():
 
     logger.info('exporting entity clusters')
 
-    temp_dir = os.path.join(config['temp_dir'], config['run_name'])
-    output_dir = os.path.join(config['output_dir'], config['run_name'])
+    temp_dir = os.path.join(config['temp_dir'], config['run_name'], config["subrun_name"])
+    output_dir = os.path.join(config['output_dir'], config['run_name'], config["subrun_name"])
     os.makedirs(output_dir, exist_ok=True)
 
     infile = os.path.join(temp_dir, 'entity_cluster.h5')
@@ -469,14 +469,11 @@ def process():
     # #         .format(output_dir=output_dir), logger)
 
     sh_cmd = f'''
-    # make NIST dir
-    mkdir -p {output_dir}/NIST
-    
     # merge ta1 files
     cat {temp_dir}/*/*.cleaned.nt > {output_dir}/ta1.ttl
 
     # merge ta1 with ta2
-    cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/NIST/task2_kb.ttl
+    cat {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl > {output_dir}/task2_kb.ttl
 
     # remove temp files
     rm {output_dir}/ta1.ttl {output_dir}/ta2_entity_cluster.ttl

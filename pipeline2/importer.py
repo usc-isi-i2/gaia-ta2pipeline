@@ -29,8 +29,8 @@ class Importer(object):
     def __init__(self, source):
         self.source = source
         self.logger = get_logger('importer-' + source)
-        self.infile = os.path.join(config['input_dir'], config['run_name'], '{}.ttl'.format(source))
-        self.temp_dir = os.path.join(config['temp_dir'], config['run_name'], source)
+        self.infile = os.path.join(config['input_dir'], config['run_name'], config['subrun_name'], f'{source}.ttl')
+        self.temp_dir = os.path.join(config['temp_dir'], config['run_name'], config['subrun_name'], source)
         self.stat_info = {}
 
     def run(self):
@@ -125,13 +125,6 @@ class Importer(object):
                     line = line.strip()
                     # normalize bnode
                     line = re_bnode.sub(f'<http://www.isi.edu/gaia/bnode/{self.source}/' + r'\1' + '>', line)
-
-                    # make cmu id globally unique
-                    if config['enable_cmu_gid_patch']:
-                        line = line.replace(
-                            'http://www.lti.cs.cmu.edu/aida/opera/corpora/eval/',
-                            'http://www.lti.cs.cmu.edu/aida/opera/corpora/eval/{}-'.format(self.source)
-                        )
 
                     fout.write(line + '\n')
 
@@ -680,7 +673,7 @@ def process():
     )
     pp.start()
 
-    all_infiles = glob.glob(os.path.join(config['input_dir'], config['run_name'], '*.ttl'))
+    all_infiles = glob.glob(os.path.join(config['input_dir'], config['run_name'], config['subrun_name'], '*.ttl'))
     logger.info(f'{len(all_infiles)} files to process')
     for idx, infile in enumerate(all_infiles):
         source = os.path.basename(infile).split('.')[0]

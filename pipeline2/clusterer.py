@@ -156,7 +156,7 @@ def process():
     df_role = pd.DataFrame()
 
     logger.info('loading entity dataframes')
-    for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], '*/*.entity.h5')):
+    for infile in glob.glob(os.path.join(config['temp_dir'], config['run_name'], config["subrun_name"], '*/*.entity.h5')):
         source = os.path.basename(infile).split('.')[0]
         # entity
         df_entity = df_entity.append(pd.read_hdf(infile))
@@ -508,7 +508,7 @@ def process():
     #     .apply(lambda x: f'{cluster_prefixes[x]}-cluster-{x}')
 
     logger.info('writing to disk')
-    entity_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], 'entity_cluster')
+    entity_cluster_output_file = os.path.join(config['temp_dir'], config['run_name'], config["subrun_name"], 'entity_cluster')
     # event_output_file = os.path.join(config['temp_dir'], config['run_name'], 'event')
     # relation_output_file = os.path.join(config['temp_dir'], config['run_name'], 'relation')
     # role_output_file = os.path.join(config['temp_dir'], config['run_name'], 'role')
@@ -578,7 +578,7 @@ def process():
         super_edges['just'].append(tuple(v['just']))
     df_super_edge = pd.DataFrame.from_dict(super_edges)
 
-    super_edge_output_file = os.path.join(config['temp_dir'], config['run_name'], 'super_edge')
+    super_edge_output_file = os.path.join(config['temp_dir'], config['run_name'], config["subrun_name"], 'super_edge')
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         df_super_edge.to_hdf(super_edge_output_file + '.h5', 'super_edge', mode='w', format='fixed')

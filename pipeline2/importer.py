@@ -100,7 +100,8 @@ class Importer(object):
         if where:
             query += f' --where \'{where}\''
         if option:
-            query += f' --opt \'{option}\''
+            for opt in option:
+                query += f' --opt \'{opt}\''
         if return_:
             query += f' --return \'{return_}\''
 
@@ -457,6 +458,55 @@ class Importer(object):
                                   )
         df_type = pd.merge(df_event, df_type, left_on='e', right_on='e')
         df_type = df_type.groupby('e')[['type', 'type_cv']].apply(self.merge_values).reset_index()
+        df_type['type_label'] = df_type['type'].apply(self.assign_qnode_label)
+
+        ### time
+        self.logger.info('creating datetime')
+        # df_time = self.kgtk_query(kgtk_db_file, kgtk_file,
+        #                           match='(e)-[:`aida:ldcTime`]->(dt)',
+        #                           option=('(dt)-[:`aida:end`]->(end)',
+        #                                 '(end)-[:`aida:timeType`]->(dte_type)',
+        #                                 '(end)-[:`aida:day`]->(e1)-[:`kgtk:structured_value`]->(dte_day)',
+        #                                 '(end)-[:`aida:month`]->(e2)-[:`kgtk:structured_value`]->(dte_month)',
+        #                                 '(end)-[:`aida:year`]->(e3)-[:`kgtk:structured_value`]->(dte_year)',
+        #                                 '(dt)-[:`aida:start`]->(start)',
+        #                                 '(start)-[:`aida:timeType`]->(dts_type)',
+        #                                 '(start)-[:`aida:day`]->(s1)-[:`kgtk:structured_value`]->(dts_day)',
+        #                                 '(start)-[:`aida:month`]->(s2)-[:`kgtk:structured_value`]->(dts_month)',
+        #                                 '(start)-[:`aida:year`]->(s3)-[:`kgtk:structured_value`]->(dts_year)'),
+        #                           return_='e AS e,'+
+        #                                   'dte_type AS dte_type, dte_day AS dte_day, dte_month AS dte_month, dte_year AS dte_year,'+
+        #                                   'dts_type AS dts_type, dts_day AS dts_day, dts_month AS dts_month, dts_year AS dts_year'
+        #                           )
+
+
+        def merge_time(values):
+            output = []
+            for idx, row in values.iterrows():
+                output_inner = {}
+                for k, v in row.items():
+                    output_inner[k] = v
+                output.append(output_inner)
+            return pd.Series({'dt': output})
+
+        df_time_end = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                    match='(e)-[:`aida:ldcTime`]->(dt)-[:`aida:end`]->(end)-[:`aida:timeType`]->(type)',  # dt_type: ON, BEFORE, AFTER, UNKNOWN
+                                    option=('(end)-[:`aida:day`]->(e1)-[:`kgtk:structured_value`]->(day)',
+                                          '(end)-[:`aida:month`]->(e2)-[:`kgtk:structured_value`]->(month)',
+                                          '(end)-[:`aida:year`]->(e3)-[:`kgtk:structured_value`]->(year)'),
+                                    return_='e AS e, type AS type, day AS day, month AS month, year AS year'
+                                    )
+        df_time_end = df_time_end.groupby('e')[['type', 'day', 'month', 'year']].apply(merge_time).rename(columns={'dt':'dt_end'}).reset_index()
+        df_time_start = self.kgtk_query(kgtk_db_file, kgtk_file,
+                                      match='(e)-[:`aida:ldcTime`]->(dt)-[:`aida:start`]->(start)-[:`aida:timeType`]->(type)',  # dt_type: ON, BEFORE, AFTER, UNKNOWN
+                                      option=('(start)-[:`aida:day`]->(e1)-[:`kgtk:structured_value`]->(day)',
+                                              '(start)-[:`aida:month`]->(e2)-[:`kgtk:structured_value`]->(month)',
+                                              '(start)-[:`aida:year`]->(e3)-[:`kgtk:structured_value`]->(year)'),
+                                      return_='e AS e, type AS type, day AS day, month AS month, year AS year'
+                                      )
+        df_time_start = df_time_start.groupby('e')[['type', 'day', 'month', 'year']].apply(merge_time).rename(columns={'dt':'dt_start'}).reset_index()
+
+        df_time = pd.merge(df_time_start, df_time_end)
 
         # associated cluster
         self.logger.info('creating associated cluster')
@@ -475,6 +525,7 @@ class Importer(object):
         self.logger.info('merging dfs')
         df_event_complete = df_event
         df_event_complete = pd.merge(df_event_complete, df_type, how='left')
+        df_event_complete = pd.merge(df_event_complete, df_time, how='left')
         df_event_complete = pd.merge(df_event_complete, df_cluster, how='left')
         df_event_complete['source'] = source
         df_event_complete.drop_duplicates(subset=['e']).reset_index(drop=True)

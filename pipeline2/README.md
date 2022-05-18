@@ -9,7 +9,7 @@ This pipeline is for AIDA Phase 3.
 
 Docker build:
 
-Download `apache-jena-3.16.0` to current directory.
+Place `apache-jena-3.16.0` in the current directory.
 
 ```
 docker build -t uscisii2/gaia-ta2pipeline .
@@ -31,7 +31,6 @@ Environment variables:
 - `KGTK_P279`: KGTK P279 file.
 - `EXTRACT_MENTION` (optional): If mentions need to be extracted. It's false by default.
 
-All of the resources are on CKG's Google shared drives at `GAIA:/gaia-ta2-phase3/res`.
 
 Docker run example:
 
@@ -52,3 +51,5 @@ docker run --rm -it \
 		-v $$(your host storage)/res:/aida/res \
 		uscisii2/ta2
 ```
+
+> All the resource files are available on CKG's Google shared drive at `GAIA:/gaia-ta2-phase3/res`.

@@ -49,7 +49,27 @@ docker run --rm -it \
 		-v $$(your host storage)/input:/input:ro \
 		-v $$(your host storage)/output:/output \
 		-v $$(your host storage)/res:/aida/res \
-		uscisii2/ta2
+		uscisii2/gaia-ta2pipeline
 ```
 
 > All the resource files are available on CKG's Google shared drive at `GAIA:/gaia-ta2-phase3/res`.
+
+
+If you are using default resources, the run example would be:
+
+```
+docker run --rm -it \
+		-e PROD=True \
+		-e NUM_PROC=1\
+		-e INPUT=/input \
+		-e OUTPUT=/output \
+		-e RUN_NAME=uiuc \
+		-e SUBRUN_NAME=NIST \
+		-e TEMP=/output/WORKING \
+		-e NAMESPACE=/aida/ta2-pipeline/res/aida-namespaces-base.tsv \
+		-e KGTK_LABELS=/aida/ta2-pipeline/res/labels.en.tsv.gz \
+		-e KGTK_P279=/aida/ta2-pipeline/res/derived.P279star.tsv.gz \
+		-v $$(your host storage)/input:/input:ro \
+		-v $$(your host storage)/output:/output \
+		uscisii2/gaia-ta2pipeline
+```

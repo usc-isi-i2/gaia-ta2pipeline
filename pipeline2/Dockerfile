@@ -13,8 +13,7 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_4.11.0-Linux-x86_64
     ./Miniconda3-py38_4.11.0-Linux-x86_64.sh -p /aida/miniconda -b && \
     rm Miniconda3-py38_4.11.0-Linux-x86_64.sh
 ENV PATH=/aida/miniconda/bin:${PATH}
-RUN conda update -y conda
-# RUN pip install --upgrade pip
+RUN conda update -y conda && conda install pip && pip install --upgrade pip
 
 ### Clone codebase
 WORKDIR /aida/ta2-pipeline/
